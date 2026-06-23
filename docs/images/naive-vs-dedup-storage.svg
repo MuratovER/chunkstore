@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 380">
+  <rect width="720" height="380" fill="#fafafa"/>
+  <text x="360" y="36" text-anchor="middle" font-family="sans-serif" font-size="18" font-weight="bold" fill="#111">Logical bytes vs bytes on disk</text>
+  <text x="360" y="58" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#666">1000 files from pool of 200 x 4 MiB chunks (~7.8 GiB logical)</text>
+  <line x1="120" y1="300" x2="620" y2="300" stroke="#ccc"/>
+  <text x="220" y="88" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="bold" fill="#333">Naive (per-file copy)</text>
+  <rect x="140" y="100" width="160" height="200" fill="#ef5350" rx="6"/>
+  <text x="220" y="190" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="bold" fill="#fff">7.8 GiB</text>
+  <text x="220" y="212" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#ffebee">100% stored</text>
+  <text x="220" y="330" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#666">Every upload = full copy</text>
+  <text x="500" y="88" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="bold" fill="#333">chunkstore (dedup)</text>
+  <rect x="420" y="100" width="160" height="200" fill="#e0e0e0" rx="6"/>
+  <rect x="420" y="120" width="160" height="160" fill="#2e7d32" rx="6"/>
+  <rect x="420" y="280" width="160" height="20" fill="#1b5e20"/>
+  <text x="500" y="195" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="bold" fill="#fff">~0.78 GiB</text>
+  <text x="500" y="217" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#e8f5e9">10% on disk</text>
+  <text x="500" y="330" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#666">Shared chunks, refcount GC</text>
+  <path d="M 320 200 L 380 200" stroke="#1b5e20" stroke-width="2" marker-end="url(#arrow)"/>
+  <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#1b5e20"/></marker></defs>
+  <rect x="300" y="168" width="120" height="28" fill="#e8f5e9" stroke="#1b5e20" rx="4"/>
+  <text x="360" y="187" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="bold" fill="#1b5e20">-90% disk</text>
+  <text x="360" y="360" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#888">Same logical data; SHA-256 verified on read</text>
+</svg>

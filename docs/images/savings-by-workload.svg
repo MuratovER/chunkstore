@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 380" role="img" aria-label="Dedup savings by workload">
+  <rect width="620" height="380" fill="#fafafa"/>
+
+  <!-- plot: y 60 = 100%, y 280 = 0% -->
+  <rect x="72" y="60" width="508" height="220" fill="#fff" stroke="#e0e0e0"/>
+
+  <!-- 20%+ zone -->
+  <rect x="72" y="60" width="508" height="176" fill="#e8f5e9" opacity="0.5"/>
+  <line x1="72" y1="236" x2="580" y2="236" stroke="#81c784" stroke-width="1.5" stroke-dasharray="5 4"/>
+  <text x="574" y="76" text-anchor="end" font-family="sans-serif" font-size="10" fill="#2e7d32">20%+ savings zone</text>
+
+  <!-- y-axis -->
+  <line x1="72" y1="60" x2="72" y2="280" stroke="#bdbdbd"/>
+  <text x="64" y="284" text-anchor="end" font-family="sans-serif" font-size="11" fill="#757575">0%</text>
+  <text x="64" y="236" text-anchor="end" font-family="sans-serif" font-size="11" fill="#757575">20%</text>
+  <text x="64" y="181" text-anchor="end" font-family="sans-serif" font-size="11" fill="#757575">50%</text>
+  <text x="64" y="64" text-anchor="end" font-family="sans-serif" font-size="11" fill="#757575">100%</text>
+
+  <line x1="72" y1="181" x2="580" y2="181" stroke="#eeeeee"/>
+
+  <!-- 4 bars: width 72, gap 56; bar_top = 280 - pct * 2.2; labels 12px above bar top -->
+  <g id="chunk-pool">
+    <rect x="100" y="82" width="72" height="198" fill="#1b5e20" rx="4"/>
+    <text x="136" y="70" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="bold" fill="#1b5e20">90%</text>
+    <text x="136" y="302" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#333">Chunk pool</text>
+    <text x="136" y="316" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#888">1000 files</text>
+  </g>
+  <g id="cdc-prefix">
+    <rect x="228" y="181" width="72" height="99" fill="#2e7d32" rx="4"/>
+    <text x="264" y="169" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="bold" fill="#1b5e20">45%</text>
+    <text x="264" y="302" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#333">CDC prefix</text>
+    <text x="264" y="316" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#888">+1 byte</text>
+  </g>
+  <g id="versions">
+    <rect x="356" y="192" width="72" height="88" fill="#43a047" rx="4"/>
+    <text x="392" y="180" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="bold" fill="#1b5e20">40%</text>
+    <text x="392" y="302" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#333">Versions</text>
+    <text x="392" y="316" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#888">90/10</text>
+  </g>
+  <g id="full-dup">
+    <rect x="484" y="170" width="72" height="110" fill="#66bb6a" rx="4"/>
+    <text x="520" y="158" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="bold" fill="#1b5e20">50%</text>
+    <text x="520" y="302" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#333">Full duplicate</text>
+    <text x="520" y="316" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#888">2 copies</text>
+  </g>
+
+  <line x1="72" y1="280" x2="580" y2="280" stroke="#bdbdbd"/>
+
+  <!-- avg callout -->
+  <rect x="168" y="338" width="284" height="28" fill="#e8f5e9" stroke="#2e7d32" rx="4"/>
+  <text x="310" y="356" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="bold" fill="#1b5e20">
+    Avg ~45% — pool hits 90% (2x)
+  </text>
+</svg>

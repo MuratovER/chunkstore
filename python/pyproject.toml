@@ -1,0 +1,51 @@
+[build-system]
+requires = ["maturin>=1.4,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "chunkstore"
+version = "0.1.0"
+description = "Content-addressed chunk storage with deduplication"
+readme = "../README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{ name = "Eldar Muratov", email = "cooperative.entr@gmail.com" }]
+keywords = ["cas", "deduplication", "chunking", "storage"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Rust",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Topic :: System :: Archiving",
+]
+
+[project.urls]
+Homepage = "https://github.com/MuratovER/chunkstore"
+Repository = "https://github.com/MuratovER/chunkstore"
+Documentation = "https://github.com/MuratovER/chunkstore#readme"
+Issues = "https://github.com/MuratovER/chunkstore/issues"
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "mypy>=1.8", "ruff>=0.4"]
+s3 = ["boto3>=1.34"]
+fastapi = ["fastapi>=0.110", "uvicorn>=0.27", "python-multipart>=0.0.9"]
+
+[tool.maturin]
+manifest-path = "Cargo.toml"
+module-name = "chunkstore._native"
+python-source = "python_src"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["cross_lang: requires Go toolchain and built libchunkstore"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.mypy]
+python_version = "3.10"
+strict = true

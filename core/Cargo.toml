@@ -1,0 +1,41 @@
+[package]
+name = "chunkstore-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Content-addressed chunk storage with deduplication and refcount GC"
+readme = "../README.md"
+keywords = ["cas", "deduplication", "chunking", "storage"]
+categories = ["filesystem", "cryptography"]
+
+[lib]
+crate-type = ["cdylib", "rlib", "staticlib"]
+name = "chunkstore"
+
+[dependencies]
+sha2.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+fastcdc.workspace = true
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+tempfile = "3"
+
+[lints]
+workspace = true
+
+[[bench]]
+name = "chunking"
+harness = false
+
+[[bench]]
+name = "dedup"
+harness = false
+
+[[example]]
+name = "workload_analysis"
+path = "examples/workload_analysis.rs"

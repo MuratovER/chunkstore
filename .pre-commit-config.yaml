@@ -1,0 +1,38 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+
+  - repo: local
+    hooks:
+      - id: cargo-fmt-all
+        name: cargo fmt --all
+        entry: cargo fmt --all
+        language: system
+        pass_filenames: false
+        types: [rust]
+
+      - id: cargo-test-core
+        name: cargo test -p chunkstore-core
+        entry: cargo test -p chunkstore-core
+        language: system
+        pass_filenames: false
+        types: [rust]
+
+      - id: cargo-deny
+        name: cargo deny check
+        entry: cargo deny check
+        language: system
+        pass_filenames: false
+        types: [rust]
+
+  - repo: https://github.com/doublify/pre-commit-rust
+    rev: v1.0
+    hooks:
+      - id: cargo-check
+      - id: clippy
+        args: [--all-targets, --, -D, warnings]

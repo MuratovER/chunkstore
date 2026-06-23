@@ -1,0 +1,21 @@
+[package]
+name = "chunkstore-py"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Python bindings for chunkstore"
+keywords = ["cas", "deduplication", "python", "pyo3"]
+categories = ["filesystem"]
+
+[lib]
+name = "chunkstore_native"
+crate-type = ["cdylib"]
+
+[dependencies]
+chunkstore-core = { path = "../core" }
+pyo3.workspace = true
+
+[lints]
+workspace = true
