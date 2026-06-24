@@ -26,6 +26,8 @@ import "C"
 
 import (
 	"errors"
+	"sync"
+	"sync/atomic"
 	"unsafe"
 )
 
@@ -41,6 +43,33 @@ type backendBridge struct {
 	backend Backend
 }
 
+var (
+	bridgeSeq      atomic.Uint64
+	bridgeRegistry sync.Map // uint64 -> *backendBridge
+)
+
+func registerBridge(bridge *backendBridge) uint64 {
+	id := bridgeSeq.Add(1)
+	bridgeRegistry.Store(id, bridge)
+	return id
+}
+
+func unregisterBridge(id uint64) {
+	if id != 0 {
+		bridgeRegistry.Delete(id)
+	}
+}
+
+func bridgeFromUserdata(userdata unsafe.Pointer) (*backendBridge, bool) {
+	id := uint64(uintptr(userdata))
+	value, ok := bridgeRegistry.Load(id)
+	if !ok {
+		return nil, false
+	}
+	bridge, ok := value.(*backendBridge)
+	return bridge, ok
+}
+
 //export chunkstore_go_backend_get
 func chunkstore_go_backend_get(
 	key *C.char,
@@ -48,7 +77,10 @@ func chunkstore_go_backend_get(
 	outLen *C.size_t,
 	userdata unsafe.Pointer,
 ) C.int {
-	bridge := (*backendBridge)(userdata)
+	bridge, ok := bridgeFromUserdata(userdata)
+	if !ok {
+		return C.CHUNKSTORE_ERR
+	}
 	data, ok, err := bridge.backend.Get(C.GoString(key))
 	if err != nil {
 		return C.CHUNKSTORE_ERR
@@ -81,7 +113,10 @@ func chunkstore_go_backend_put(
 	length C.size_t,
 	userdata unsafe.Pointer,
 ) C.int {
-	bridge := (*backendBridge)(userdata)
+	bridge, ok := bridgeFromUserdata(userdata)
+	if !ok {
+		return C.CHUNKSTORE_ERR
+	}
 	var payload []byte
 	if data != nil && length > 0 {
 		payload = C.GoBytes(unsafe.Pointer(data), C.int(length))
@@ -94,7 +129,10 @@ func chunkstore_go_backend_put(
 
 //export chunkstore_go_backend_exists
 func chunkstore_go_backend_exists(key *C.char, userdata unsafe.Pointer) C.int {
-	bridge := (*backendBridge)(userdata)
+	bridge, ok := bridgeFromUserdata(userdata)
+	if !ok {
+		return C.CHUNKSTORE_ERR
+	}
 	ok, err := bridge.backend.Exists(C.GoString(key))
 	if err != nil {
 		return C.CHUNKSTORE_ERR
@@ -107,7 +145,10 @@ func chunkstore_go_backend_exists(key *C.char, userdata unsafe.Pointer) C.int {
 
 //export chunkstore_go_backend_delete
 func chunkstore_go_backend_delete(key *C.char, userdata unsafe.Pointer) C.int {
-	bridge := (*backendBridge)(userdata)
+	bridge, ok := bridgeFromUserdata(userdata)
+	if !ok {
+		return C.CHUNKSTORE_ERR
+	}
 	if err := bridge.backend.Delete(C.GoString(key)); err != nil {
 		return C.CHUNKSTORE_ERR
 	}
@@ -120,10 +161,13 @@ func Open(backend Backend) (*Store, error) {
 		return nil, errors.New("backend is nil")
 	}
 	bridge := &backendBridge{backend: backend}
-	cb := C.chunkstore_go_callbacks(unsafe.Pointer(bridge))
+	id := registerBridge(bridge)
+	// Pass numeric id as void* — avoids cgo "Go pointer to Go pointer" (Go 1.21+).
+	cb := C.chunkstore_go_callbacks(unsafe.Pointer(uintptr(id)))
 	handle := C.chunkstore_create(&cb)
 	if handle == nil {
+		unregisterBridge(id)
 		return nil, errors.New("chunkstore_create failed")
 	}
-	return &Store{handle: handle, keep: bridge}, nil
+	return &Store{handle: handle, bridgeID: id, keep: bridge}, nil
 }

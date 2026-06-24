@@ -52,16 +52,29 @@ go test -v -tags s3    # needs MinIO (see go/README.md)
 
 ### Pre-commit hooks
 
-Install once — runs on `git commit` when Rust files change:
+Mirrors **CI fast checks** on every commit and **unit tests** on `git push`:
+
+| Stage | Hooks |
+|-------|--------|
+| `pre-commit` | yaml/whitespace, `cargo fmt --check`, `clippy -p chunkstore-core`, `ruff`, `gofmt` |
+| `pre-push` | `cargo test`, `pytest` (no cross_lang/s3), `go test` |
+
+Install once:
 
 ```bash
 pip install pre-commit
-pre-commit install
+pre-commit install --install-hooks
+pre-commit install --hook-type pre-push
 ```
 
-Hooks: `cargo fmt --all`, `cargo test -p chunkstore-core`, `cargo deny check`, `cargo-check`, `clippy`.
+Run manually:
 
-Run manually on all files: `pre-commit run --all-files`
+```bash
+pre-commit run --all-files
+pre-commit run --all-files --hook-stage push
+```
+
+**Not in hooks** (CI only): MinIO S3 tests, cross-language test, `cargo deny`/`cargo audit`, workload analysis — run via [Full local CI](#full-local-ci-before-opening-a-pr) before large PRs.
 
 ### Full local CI (before opening a PR)
 
@@ -151,15 +164,15 @@ Use clear commit messages. One logical change per PR when possible.
 
 **Required scenarios** (must keep passing):
 
-1. Unique file + download  
-2. Duplicate file dedups  
-3. Partial overlap reuses prefix  
-4. Delete one of two keeps shared chunk  
-5. Delete last file GCs chunk  
-6. Concurrent ingest (same chunk, refcount=2) — Rust  
-7. Streaming upload from disk — Python  
-8. CDC beats fixed on prefix insert  
-9. Shared binary block savings  
+1. Unique file + download
+2. Duplicate file dedups
+3. Partial overlap reuses prefix
+4. Delete one of two keeps shared chunk
+5. Delete last file GCs chunk
+6. Concurrent ingest (same chunk, refcount=2) — Rust
+7. Streaming upload from disk — Python
+8. CDC beats fixed on prefix insert
+9. Shared binary block savings
 
 ### 4. Open a pull request
 
@@ -229,8 +242,8 @@ Metadata on the backend:
 
 Any change to keys, JSON shape, or digest rules **must**:
 
-1. Update tests in Rust, Python, and Go  
-2. Run `pytest -m cross_lang`  
+1. Update tests in Rust, Python, and Go
+2. Run `pytest -m cross_lang`
 3. Be documented in the PR (version bump / migration note if needed)
 
 ---

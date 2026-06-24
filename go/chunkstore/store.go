@@ -16,8 +16,9 @@ import (
 
 // Store wraps the Rust chunkstore core via C-API.
 type Store struct {
-	handle *C.ChunkStoreHandle
-	keep   any // keeps callback userdata alive for Open()-backed stores
+	handle   *C.ChunkStoreHandle
+	bridgeID uint64 // callback registry id; 0 for OpenFilesystem
+	keep     any    // keeps backend alive for Open()-backed stores
 }
 
 // OpenFilesystem creates a store backed by on-disk chunk files.
@@ -47,6 +48,10 @@ func (s *Store) Close() {
 	if s.handle != nil {
 		C.chunkstore_destroy(s.handle)
 		s.handle = nil
+	}
+	if s.bridgeID != 0 {
+		unregisterBridge(s.bridgeID)
+		s.bridgeID = 0
 	}
 }
 

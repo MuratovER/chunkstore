@@ -1,3 +1,16 @@
+# Align with .github/workflows/ci.yml — fast checks on commit, tests on push.
+#
+# Setup (once):
+#   pip install pre-commit
+#   pre-commit install --install-hooks
+#   pre-commit install --hook-type pre-push
+#
+# Manual: pre-commit run --all-files && pre-commit run --all-files --hook-stage push
+
+default_install_hook_types:
+  - pre-commit
+  - pre-push
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
@@ -6,33 +19,59 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-added-large-files
+        args: [--maxkb=1024]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.6
+    hooks:
+      - id: ruff
+        name: ruff (python)
+        files: ^python/(python_src|tests)/
 
   - repo: local
     hooks:
-      - id: cargo-fmt-all
-        name: cargo fmt --all
-        entry: cargo fmt --all
+      # --- pre-commit: fast, mirrors CI rust job (fmt + clippy) ---
+      - id: rust-fmt-check
+        name: cargo fmt --check
+        entry: cargo fmt --all -- --check
         language: system
         pass_filenames: false
-        types: [rust]
+        always_run: true
 
-      - id: cargo-test-core
-        name: cargo test -p chunkstore-core
+      - id: rust-clippy
+        name: clippy chunkstore-core
+        entry: cargo clippy -p chunkstore-core --all-targets -- -D warnings
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: go-fmt-check
+        name: gofmt check
+        entry: scripts/hooks/go-fmt-check.sh
+        language: system
+        pass_filenames: false
+        files: ^(go/|examples/go-http/)
+
+      # --- pre-push: heavier tests (CI rust/python/go jobs) ---
+      - id: rust-test
+        name: cargo test chunkstore-core
         entry: cargo test -p chunkstore-core
         language: system
         pass_filenames: false
-        types: [rust]
+        stages: [pre-push]
 
-      - id: cargo-deny
-        name: cargo deny check
-        entry: cargo deny check
+      - id: python-test
+        name: pytest (no cross_lang/s3)
+        entry: scripts/hooks/python-test.sh
         language: system
         pass_filenames: false
-        types: [rust]
+        stages: [pre-push]
+        files: ^(python/|core/)
 
-  - repo: https://github.com/doublify/pre-commit-rust
-    rev: v1.0
-    hooks:
-      - id: cargo-check
-      - id: clippy
-        args: [--all-targets, --, -D, warnings]
+      - id: go-test
+        name: go test (chunkstore)
+        entry: scripts/hooks/go-test.sh
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+        files: ^(go/|core/include/|core/src/ffi/)

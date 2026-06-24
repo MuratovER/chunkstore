@@ -400,11 +400,11 @@ xychart-beta
 
 Want to fix a bug, add a feature, or improve bindings? See **[CONTRIBUTING.md](CONTRIBUTING.md)** for:
 
-- local setup and full CI commands  
-- repository layout and where to put changes  
-- test requirements (including cross-language)  
-- Rust / Python / Go style rules  
-- on-disk format stability rules  
+- local setup and full CI commands
+- repository layout and where to put changes
+- test requirements (including cross-language)
+- Rust / Python / Go style rules
+- on-disk format stability rules
 
 **PyPI releases:** [docs/PYPI.md](docs/PYPI.md)
 

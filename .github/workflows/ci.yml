@@ -198,10 +198,6 @@ jobs:
         working-directory: examples/go-http
         run: go test -v
 
-      - name: Test Go HTTP example
-        working-directory: examples/go-http
-        run: go test -v
-
   quality:
     runs-on: ubuntu-latest
     steps:

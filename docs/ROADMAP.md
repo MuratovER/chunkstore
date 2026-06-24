@@ -117,7 +117,7 @@ Multi-instance and optional encryption — only with a clear design.
 | Task | Status | Notes |
 |------|--------|-------|
 | Pre-commit: fmt, test, deny, clippy | ✅ | |
-| `mypy` / `ruff` in pre-commit or CI | 📋 | Documented in CONTRIBUTING, not enforced in CI |
+| `mypy` / `ruff` in pre-commit or CI | 🚧 | `ruff` in pre-commit; `mypy` still manual |
 | Criterion benches in CI (threshold) | 📋 | Optional regression guard |
 | Dependabot / Renovate | 📋 | Rust, Python, Go, GitHub Actions |
 | Issue templates + PR template | 📋 | Bug / feature / question |
