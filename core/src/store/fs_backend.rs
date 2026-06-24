@@ -1,9 +1,12 @@
 use std::fs;
 use std::io::Write;
 use std::path::{Component, Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::error::ChunkStoreError;
 use crate::store::ChunkBackend;
+
+static WRITE_TMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// Filesystem-backed chunk and metadata storage.
 #[derive(Debug, Clone)]
@@ -58,13 +61,18 @@ impl FsBackend {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
         }
-        let tmp = path.with_extension("tmp");
+        let file_name = path
+            .file_name()
+            .ok_or_else(|| ChunkStoreError::invalid_argument("path has no file name".to_string()))?
+            .to_string_lossy();
+        let unique = WRITE_TMP_COUNTER.fetch_add(1, Ordering::Relaxed);
+        let tmp = path.with_file_name(format!("{file_name}.{unique}.tmp"));
         {
             let mut file = fs::File::create(&tmp)?;
             file.write_all(data)?;
             file.sync_all()?;
         }
-        fs::rename(tmp, path)?;
+        fs::rename(&tmp, path)?;
         Ok(())
     }
 

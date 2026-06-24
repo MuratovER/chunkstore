@@ -26,6 +26,12 @@ pub fn shared_memory_store() -> (Arc<MemoryBackend>, ChunkStore<Arc<MemoryBacken
     (backend, store)
 }
 
+pub fn shared_fs_store() -> (tempfile::TempDir, Arc<ChunkStore<FsBackend>>) {
+    let (dir, backend) = temp_fs_backend();
+    let store = Arc::new(ChunkStore::open(backend).expect("open store"));
+    (dir, store)
+}
+
 pub fn write_temp_file(data: &[u8]) -> (tempfile::TempDir, std::fs::File) {
     let dir = tempdir().expect("tempdir");
     let path = dir.path().join("upload.bin");

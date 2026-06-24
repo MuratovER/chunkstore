@@ -111,6 +111,8 @@ pub struct ChunkStore<B: ChunkBackend> {
     manifest: Mutex<Manifest>,
     refcount: Mutex<RefCount>,
     stats: Mutex<Stats>,
+    /// Serializes chunk blob exists/put to avoid lost-update races on FS backends.
+    blob: Mutex<()>,
 }
 
 impl<B: ChunkBackend> ChunkStore<B> {
@@ -123,6 +125,7 @@ impl<B: ChunkBackend> ChunkStore<B> {
             manifest: Mutex::new(manifest),
             refcount: Mutex::new(refcount),
             stats: Mutex::new(Stats::default()),
+            blob: Mutex::new(()),
         };
         store.rebuild_stats()?;
         Ok(store)
@@ -228,12 +231,16 @@ impl<B: ChunkBackend> ChunkStore<B> {
     }
 
     fn store_chunk(&self, digest: &str, data: &[u8]) -> Result<(), ChunkStoreError> {
-        let exists = self.backend.exists(digest)?;
         let size = data.len() as u64;
 
-        if !exists {
-            self.backend.put(digest, data)?;
-        }
+        let exists = {
+            let _blob = self.blob.lock().map_err(|_| ChunkStoreError::LockError)?;
+            let exists = self.backend.exists(digest)?;
+            if !exists {
+                self.backend.put(digest, data)?;
+            }
+            exists
+        };
 
         {
             let mut refcount = self

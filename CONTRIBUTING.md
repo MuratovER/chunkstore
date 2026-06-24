@@ -282,11 +282,11 @@ When in doubt:
 ## Release / versioning (maintainers)
 
 - Workspace version: [`Cargo.toml`](../Cargo.toml) + [`python/pyproject.toml`](../python/pyproject.toml) + [`python_src/chunkstore/__init__.py`](../python/python_src/chunkstore/__init__.py) — keep in sync
-- **Release:** bump version, push to `main` → [`release.yml`](../.github/workflows/release.yml) tags + GitHub Release → [`pypi.yml`](../.github/workflows/pypi.yml) publishes to PyPI
-- **PyPI:** see [docs/PYPI.md](../docs/PYPI.md)
+- **Release:** bump version, push to `main` → [`release.yml`](../.github/workflows/release.yml) → GitHub Release → [`pypi.yml`](../.github/workflows/pypi.yml) + [`crates-io.yml`](../.github/workflows/crates-io.yml). See [docs/RELEASE.md](../docs/RELEASE.md).
+- **PyPI:** [docs/PYPI.md](../docs/PYPI.md) (trusted publishing setup)
+- **crates.io:** `CARGO_REGISTRY_TOKEN` secret + [docs/CRATES.md](../docs/CRATES.md)
 - **Roadmap:** [docs/ROADMAP.md](../docs/ROADMAP.md)
 - Semantic versioning intended after v1.0
-- crates.io publish — see [docs/CRATES.md](docs/CRATES.md) and `.github/workflows/crates-io.yml`
 
 ---
 

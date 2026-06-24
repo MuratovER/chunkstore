@@ -1,8 +1,8 @@
 # PyPI publishing
 
-**Live:** [chunkstore 0.1.0](https://pypi.org/project/chunkstore/0.1.0/) on PyPI (Linux wheels + sdist; macOS/Windows wheels ship from the next release).
+**Live:** [chunkstore on PyPI](https://pypi.org/project/chunkstore/) — published automatically on GitHub Release via [`pypi.yml`](../.github/workflows/pypi.yml).
 
-Automated via [`.github/workflows/pypi.yml`](../.github/workflows/pypi.yml).
+See [docs/RELEASE.md](RELEASE.md) for the full PyPI + crates.io release pipeline.
 
 ## One-time setup
 
@@ -46,28 +46,30 @@ Keep these in sync:
 |------|--------|
 | [`Cargo.toml`](../Cargo.toml) | `[workspace.package] version` |
 | [`python/pyproject.toml`](../python/pyproject.toml) | `[project] version` |
+| [`python/python_src/chunkstore/__init__.py`](../python/python_src/chunkstore/__init__.py) | `__version__` |
 
 ```bash
-# example for 0.1.1
-# edit both files, then:
-git add Cargo.toml python/pyproject.toml
-git commit -m "chore: release v0.1.1"
-git tag v0.1.1
-git push origin main --tags
+# example for 0.2.1
+# edit version files + CHANGELOG.md, then:
+git add Cargo.toml python/pyproject.toml python/python_src/chunkstore/__init__.py CHANGELOG.md
+git commit -m "Release v0.2.1: …"
+git push origin main
 ```
 
-### Publish to PyPI
+### Automatic publish (PyPI + crates.io)
 
-**Automatic (default):** bump `version` in [`Cargo.toml`](../Cargo.toml) and [`python/pyproject.toml`](../python/pyproject.toml), push to `main`. The [`release.yml`](../.github/workflows/release.yml) workflow creates tag `vX.Y.Z` and a GitHub Release when the tag is new; [`pypi.yml`](../.github/workflows/pypi.yml) then builds wheels and uploads to PyPI.
+Push to `main` with a new version → [`release.yml`](../.github/workflows/release.yml) creates GitHub Release `vX.Y.Z` → both publish workflows run:
 
-**Manual:**
+| Workflow | Registry |
+|----------|----------|
+| [`pypi.yml`](../.github/workflows/pypi.yml) | [PyPI `chunkstore`](https://pypi.org/project/chunkstore/) |
+| [`crates-io.yml`](../.github/workflows/crates-io.yml) | [crates.io `chunkstore-core`](https://crates.io/crates/chunkstore-core) |
 
-1. Open **GitHub → Releases → Draft a new release**.
-2. Choose tag `v0.1.x` (create from `main` if needed).
-3. Title: `v0.1.x` — paste short changelog.
-4. Click **Publish release**.
+Full maintainer checklist: [docs/RELEASE.md](RELEASE.md).
 
-The `pypi.yml` workflow builds sdist + wheels and uploads to PyPI:
+**One-time:** PyPI trusted publishing ([PYPI.md](PYPI.md)); crates.io secret `CARGO_REGISTRY_TOKEN` in GitHub Actions.
+
+**Manual** (re-trigger without version bump): GitHub → Releases → Publish release for an existing tag, or re-run failed workflow jobs in Actions.
 
 | Platform | Wheel |
 |----------|--------|

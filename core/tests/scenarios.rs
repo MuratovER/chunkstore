@@ -7,7 +7,7 @@ use chunkstore::FsBackend;
 
 use common::{
     dedup_savings, ingest_from_reader_fixed, make_20mb_with_prefix_insert, make_shared_block_files,
-    memory_store, shared_memory_store, temp_fs_store, write_temp_file,
+    memory_store, shared_fs_store, shared_memory_store, temp_fs_store, write_temp_file,
 };
 
 #[test]
@@ -76,6 +76,26 @@ fn scenario_05_delete_last_file_gcs_chunk_on_fs() {
 fn scenario_06_concurrent_upload_single_chunk() {
     let (_backend, store) = shared_memory_store();
     let store = Arc::new(store);
+    let payload = b"concurrent-same";
+
+    let handles: Vec<_> = (0..2)
+        .map(|i| {
+            let store = Arc::clone(&store);
+            let id = format!("doc-{i}");
+            thread::spawn(move || store.ingest(&id, payload).unwrap())
+        })
+        .collect();
+
+    let results: Vec<_> = handles.into_iter().map(|h| h.join().unwrap()).collect();
+    assert_eq!(results[0][0], results[1][0]);
+    assert_eq!(store.chunk_refcount(&results[0][0]).unwrap(), Some(2));
+    let stats = store.stats().unwrap();
+    assert!(stats.savings_pct() > 0.0);
+}
+
+#[test]
+fn scenario_06_concurrent_upload_on_fs() {
+    let (_dir, store) = shared_fs_store();
     let payload = b"concurrent-same";
 
     let handles: Vec<_> = (0..2)
