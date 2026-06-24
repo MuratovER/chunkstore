@@ -1,7 +1,8 @@
 name: Release
 
 # When `version` in Cargo.toml is bumped on main and the tag does not exist yet,
-# create a GitHub Release. That triggers `pypi.yml` and `crates-io.yml` (release: published).
+# create a GitHub Release. Publish workflows chain via workflow_run (GITHUB_TOKEN
+# releases do not emit release:published to other workflows).
 
 on:
   push:

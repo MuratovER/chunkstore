@@ -6,11 +6,16 @@ One push to `main` with a version bump publishes **Python (PyPI)**, **Rust (crat
 flowchart LR
   push[Push version bump to main] --> releaseYml[release.yml]
   releaseYml --> ghRelease[GitHub Release vX.Y.Z]
-  ghRelease --> pypi[pypi.yml]
-  ghRelease --> crates[crates-io.yml]
+  releaseYml --> pypi[pypi.yml via workflow_run]
+  releaseYml --> crates[crates-io.yml via workflow_run]
   pypi --> PyPI[PyPI chunkstore]
   crates --> Crates[crates.io chunkstore-core]
 ```
+
+GitHub does not deliver `release: published` to other workflows when the release is
+created with the default `GITHUB_TOKEN`. `pypi.yml` and `crates-io.yml` therefore
+also listen for **`workflow_run`** after **Release** completes and publish only when
+the new tag points at that commit.
 
 ## 1. Bump version (maintainer)
 
@@ -36,10 +41,13 @@ git push origin main
 
 | Trigger | Workflow | Destination |
 |---------|----------|-------------|
-| GitHub Release **published** | [`pypi.yml`](../.github/workflows/pypi.yml) | [pypi.org/project/chunkstore](https://pypi.org/project/chunkstore/) |
-| GitHub Release **published** | [`crates-io.yml`](../.github/workflows/crates-io.yml) | [crates.io/crates/chunkstore-core](https://crates.io/crates/chunkstore-core) |
+| **Release** workflow completed (new tag) | [`pypi.yml`](../.github/workflows/pypi.yml) | [pypi.org/project/chunkstore](https://pypi.org/project/chunkstore/) |
+| **Release** workflow completed (new tag) | [`crates-io.yml`](../.github/workflows/crates-io.yml) | [crates.io/crates/chunkstore-core](https://crates.io/crates/chunkstore-core) |
 
 Check **Actions** after push: `Release` → `Publish to PyPI` → `Publish to crates.io`.
+
+**Note:** `Publish to PyPI` / `Publish to crates.io` do not appear under **Deployments**
+for crates.io (no GitHub Environment). Only PyPI uses the `pypi` environment.
 
 ## One-time setup
 
@@ -66,10 +74,13 @@ No GitHub Environment required for crates.io — only the secret.
 
 ## Manual re-publish
 
-If a workflow failed after the release was published:
+If a workflow failed after the release was published, or a release predates the
+`workflow_run` chain (e.g. v0.2.0 tag exists but PyPI/crates.io never ran):
 
-- **PyPI:** Actions → **Publish to PyPI** → Run workflow (uses existing release event only on `published`; for retry, re-run failed jobs or publish a patch release).
-- **crates.io:** Re-run the failed **Publish to crates.io** job, or bump patch version (crates.io does not allow republishing the same version).
+- **PyPI:** Actions → **Publish to PyPI** → **Run workflow** (builds from current `main`).
+- **crates.io:** Actions → **Publish to crates.io** → **Run workflow** (requires
+  `CARGO_REGISTRY_TOKEN`). crates.io does not allow republishing the same version —
+  if `0.2.0` is already published, bump a patch release instead.
 
 ## Go module
 
