@@ -57,22 +57,31 @@ jobs:
 
   python-s3:
     runs-on: ubuntu-latest
-    services:
-      minio:
-        image: minio/minio:RELEASE.2024-12-18T13-15-44Z
-        ports:
-          - 9000:9000
-        env:
-          MINIO_ROOT_USER: minioadmin
-          MINIO_ROOT_PASSWORD: minioadmin
     env:
       AWS_ACCESS_KEY_ID: minioadmin
       AWS_SECRET_ACCESS_KEY: minioadmin
       AWS_DEFAULT_REGION: us-east-1
-      S3_ENDPOINT_URL: http://localhost:9000
+      S3_ENDPOINT_URL: http://127.0.0.1:9000
       S3_BUCKET: chunkstore-ci
     steps:
       - uses: actions/checkout@v4
+
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio \
+            -p 9000:9000 \
+            -e MINIO_ROOT_USER=minioadmin \
+            -e MINIO_ROOT_PASSWORD=minioadmin \
+            minio/minio:RELEASE.2024-12-18T13-15-44Z server /data
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:9000/minio/health/live; then
+              echo "MinIO ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs minio || true
+          exit 1
 
       - uses: actions/setup-python@v5
         with:
@@ -86,10 +95,6 @@ jobs:
       - name: S3 backend integration tests (MinIO)
         working-directory: python
         run: |
-          for i in $(seq 1 30); do
-            curl -sf http://localhost:9000/minio/health/live && break
-            sleep 1
-          done
           python -m venv .venv
           .venv/bin/pip install maturin pytest "boto3>=1.34"
           .venv/bin/maturin develop --release
@@ -147,22 +152,31 @@ jobs:
 
   go-s3:
     runs-on: ubuntu-latest
-    services:
-      minio:
-        image: minio/minio:RELEASE.2024-12-18T13-15-44Z
-        ports:
-          - 9000:9000
-        env:
-          MINIO_ROOT_USER: minioadmin
-          MINIO_ROOT_PASSWORD: minioadmin
     env:
       AWS_ACCESS_KEY_ID: minioadmin
       AWS_SECRET_ACCESS_KEY: minioadmin
       AWS_DEFAULT_REGION: us-east-1
-      S3_ENDPOINT_URL: http://localhost:9000
+      S3_ENDPOINT_URL: http://127.0.0.1:9000
       S3_BUCKET: chunkstore-ci-go
     steps:
       - uses: actions/checkout@v4
+
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio \
+            -p 9000:9000 \
+            -e MINIO_ROOT_USER=minioadmin \
+            -e MINIO_ROOT_PASSWORD=minioadmin \
+            minio/minio:RELEASE.2024-12-18T13-15-44Z server /data
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:9000/minio/health/live; then
+              echo "MinIO ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs minio || true
+          exit 1
 
       - uses: actions/setup-go@v5
         with:
@@ -178,12 +192,11 @@ jobs:
 
       - name: Go S3 backend integration tests (MinIO)
         working-directory: go/chunkstore
-        run: |
-          for i in $(seq 1 30); do
-            curl -sf http://localhost:9000/minio/health/live && break
-            sleep 1
-          done
-          go test -v -tags s3 -run 'TestS3'
+        run: go test -v -tags s3 -run 'TestS3'
+
+      - name: Test Go HTTP example
+        working-directory: examples/go-http
+        run: go test -v
 
       - name: Test Go HTTP example
         working-directory: examples/go-http

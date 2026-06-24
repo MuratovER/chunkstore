@@ -340,8 +340,7 @@ pub unsafe extern "C" fn chunkstore_bytes_alloc(len: usize) -> *mut u8 {
     if len == 0 {
         return ptr::null_mut();
     }
-    let mut bytes = Vec::with_capacity(len);
-    bytes.resize(len, 0);
+    let mut bytes = vec![0; len];
     let ptr = bytes.as_mut_ptr();
     std::mem::forget(bytes);
     ptr
