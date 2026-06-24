@@ -4,9 +4,12 @@ package chunkstore
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -25,8 +28,15 @@ func s3TestEnv(t *testing.T) (endpoint, bucket, prefix string) {
 	if bucket == "" {
 		bucket = "chunkstore-test"
 	}
-	prefix = fmt.Sprintf("go-pytest-%d", os.Getpid())
+	// Unique prefix per test — same pid reused across tests in one package.
+	safe := strings.ReplaceAll(t.Name(), "/", "_")
+	prefix = fmt.Sprintf("go-pytest-%s-%d", safe, os.Getpid())
 	return endpoint, bucket, prefix
+}
+
+func sha256Hex(data []byte) string {
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])
 }
 
 func ensureS3Bucket(t *testing.T, endpoint, bucket string) {
@@ -120,33 +130,29 @@ func TestS3DeleteGC(t *testing.T) {
 		t.Fatalf("ingest: %v", err)
 	}
 
-	stats, err := store.Stats()
-	if err != nil {
-		t.Fatalf("stats before delete: %v", err)
-	}
-	if stats.StoredBytes == 0 {
-		t.Fatalf("expected stored bytes before delete")
+	digest := sha256Hex(payload)
+	ok, err := backend.Exists(digest)
+	if err != nil || !ok {
+		t.Fatalf("chunk should exist before delete")
 	}
 
 	if err := store.Delete("only"); err != nil {
 		t.Fatalf("delete: %v", err)
 	}
 
-	// After deleting the only file, stored bytes should drop to zero.
-	stats, err = store.Stats()
+	ok, err = backend.Exists(digest)
+	if err != nil {
+		t.Fatalf("exists after delete: %v", err)
+	}
+	if ok {
+		t.Fatalf("chunk %s should be GC'd from S3", digest)
+	}
+
+	stats, err := store.Stats()
 	if err != nil {
 		t.Fatalf("stats after delete: %v", err)
 	}
-	if stats.StoredBytes != 0 {
-		t.Fatalf("expected stored_bytes=0 after GC, got %d", stats.StoredBytes)
-	}
-
-	// Sanity: backend still works (no leaked broken state).
-	ok, err := backend.Exists("_manifest/__index__")
-	if err != nil {
-		t.Fatalf("exists manifest index: %v", err)
-	}
-	if ok {
-		t.Fatalf("expected empty manifest index after delete")
+	if stats.StoredBytes != 0 || stats.TotalBytes != 0 {
+		t.Fatalf("expected zero stats after last file deleted, got %+v", stats)
 	}
 }

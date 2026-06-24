@@ -61,7 +61,7 @@ repos:
         stages: [pre-push]
 
       - id: python-test
-        name: pytest (no cross_lang/s3)
+        name: pytest (+ S3 if Docker)
         entry: scripts/hooks/python-test.sh
         language: system
         pass_filenames: false
@@ -69,7 +69,7 @@ repos:
         files: ^(python/|core/)
 
       - id: go-test
-        name: go test (chunkstore)
+        name: go test (+ S3 if Docker)
         entry: scripts/hooks/go-test.sh
         language: system
         pass_filenames: false

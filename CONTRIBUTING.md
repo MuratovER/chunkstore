@@ -57,7 +57,7 @@ Mirrors **CI fast checks** on every commit and **unit tests** on `git push`:
 | Stage | Hooks |
 |-------|--------|
 | `pre-commit` | yaml/whitespace, `cargo fmt --check`, `clippy -p chunkstore-core`, `ruff`, `gofmt` |
-| `pre-push` | `cargo test`, `pytest` (no cross_lang/s3), `go test` |
+| `pre-push` | `cargo test`, `pytest` + **S3/MinIO** (if Docker runs), `go test` + **S3** (if Docker runs) |
 
 Install once:
 
@@ -74,7 +74,7 @@ pre-commit run --all-files
 pre-commit run --all-files --hook-stage push
 ```
 
-**Not in hooks** (CI only): MinIO S3 tests, cross-language test, `cargo deny`/`cargo audit`, workload analysis — run via [Full local CI](#full-local-ci-before-opening-a-pr) before large PRs.
+**Not in hooks** (CI only unless you run manually): cross-language test, `cargo deny`/`cargo audit`, workload analysis.
 
 ### Full local CI (before opening a PR)
 
