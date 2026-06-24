@@ -46,8 +46,7 @@ git push origin main
 
 Check **Actions** after push: `Release` → `Publish to PyPI` → `Publish to crates.io`.
 
-**Note:** `Publish to PyPI` / `Publish to crates.io` do not appear under **Deployments**
-for crates.io (no GitHub Environment). Only PyPI uses the `pypi` environment.
+Both publish jobs appear under **Deployments** (`pypi` and `crates-io` environments).
 
 ## One-time setup
 
@@ -67,10 +66,11 @@ GitHub **Settings → Environments → `pypi`** (optional approval gate).
 ### crates.io
 
 1. Create API token at [crates.io/settings/tokens](https://crates.io/settings/tokens) (scope: publish `chunkstore-core`).
-2. Add repository secret **`CARGO_REGISTRY_TOKEN`** (Settings → Secrets and variables → Actions).
-3. First publish may require `cargo owner --add github:MuratovER:chunkstore-core` from a maintainer machine.
+2. Verify your email at [crates.io/settings/profile](https://crates.io/settings/profile) (required to publish).
+3. Add secret **`CARGO_REGISTRY_TOKEN`** — repository secret or under environment **`crates-io`** (Settings → Environments → `crates-io`; optional approval gate).
+4. First publish may require `cargo owner --add github:MuratovER:chunkstore-core` from a maintainer machine.
 
-No GitHub Environment required for crates.io — only the secret.
+GitHub creates the **`crates-io`** environment on first workflow run if it does not exist yet.
 
 ## Manual re-publish
 
