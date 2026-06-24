@@ -22,7 +22,7 @@ We are **not** building a backup CLI, S3 gateway, or distributed database. See [
 |------|---------|----------|
 | Rust | 1.75+ (`rust-version` in workspace) | `core/`, Python extension |
 | Python | 3.10+ | `python/` wrapper, tests |
-| Go | 1.22+ | `go/` wrapper (optional) |
+| Go | 1.24+ | `go/` wrapper (optional) |
 | maturin | 1.4+ | Python build |
 | pytest | 8+ | Python tests |
 
@@ -45,7 +45,7 @@ pytest -q
 
 # Go
 cd ../..
-CARGO_TARGET_DIR=target cargo build --release -p chunkstore-core
+./scripts/build-core.sh
 cd go/chunkstore && go test -v
 go test -v -tags s3    # needs MinIO (see go/README.md)
 ```
@@ -286,7 +286,7 @@ When in doubt:
 - **PyPI:** see [docs/PYPI.md](../docs/PYPI.md)
 - **Roadmap:** [docs/ROADMAP.md](../docs/ROADMAP.md)
 - Semantic versioning intended after v1.0
-- crates.io publish — not automated yet
+- crates.io publish — see [docs/CRATES.md](docs/CRATES.md) and `.github/workflows/crates-io.yml`
 
 ---
 

@@ -3,7 +3,7 @@
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 
-CARGO_TARGET_DIR="$root/target" cargo build --release -p chunkstore-core -q
+"$root/scripts/build-core.sh"
 cd "$root/go/chunkstore"
 
 go test -v
@@ -20,7 +20,7 @@ run_go_s3_tests() {
 
   local port=19000
   local name="chunkstore-precommit-minio-$$"
-  trap "docker rm -f '${name}' &>/dev/null || true" RETURN
+  trap "docker rm -f \"${name}\" &>/dev/null || true" RETURN
 
   docker run -d --name "$name" \
     -p "127.0.0.1:${port}:9000" \

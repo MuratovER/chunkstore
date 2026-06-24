@@ -1,8 +1,8 @@
-module github.com/chunkstore/chunkstore/examples/go-http
+module github.com/MuratovER/chunkstore/examples/go-http
 
 go 1.24
 
-require github.com/chunkstore/chunkstore/go v0.0.0
+require github.com/MuratovER/chunkstore/go v0.0.0
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.42.0 // indirect
@@ -25,4 +25,4 @@ require (
 	github.com/aws/smithy-go v1.27.2 // indirect
 )
 
-replace github.com/chunkstore/chunkstore/go => ../../go
+replace github.com/MuratovER/chunkstore/go => ../../go

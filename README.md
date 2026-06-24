@@ -76,14 +76,24 @@ println!("{:?}", store.stats()?);
 **Go** (build core first):
 
 ```bash
-CARGO_TARGET_DIR=target cargo build --release -p chunkstore-core
+./scripts/build-core.sh
 cd go/chunkstore && go test -v
 ```
 
 ```go
+import "github.com/MuratovER/chunkstore/go/chunkstore"
+
 store, _ := chunkstore.OpenFilesystem("/data/chunks")
 defer store.Close()
 store.Ingest("doc_v1", []byte("hello world"))
+```
+
+**S3** (Python or Go — see [docs/S3.md](docs/S3.md)):
+
+```python
+from chunkstore import ChunkStore, S3Backend
+store = ChunkStore.open(S3Backend("my-bucket", prefix="chunks"))
+store.ingest("doc_v1", b"hello world")
 ```
 
 Cross-language smoke test: `pytest -m cross_lang` (Python write → Go read/delete → Python stats).
@@ -323,12 +333,14 @@ CI verifies: **Python write → Go read/delete → Python stats** (`pytest -m cr
 | **Python** | Python 3.10+ | `pip install chunkstore` — Linux, macOS, Windows wheels ([PyPI](https://pypi.org/project/chunkstore/)) |
 | **Python (dev)** | Rust (maturin) | `cd python && maturin develop --release` |
 | **Rust** | Rust 1.70+ | `cargo build --release -p chunkstore-core` |
-| **Go** | Go 1.22+, built `libchunkstore.a` | See [`go/README.md`](go/README.md) |
+| **Go** | Go 1.24+, built `libchunkstore.a` | `go get github.com/MuratovER/chunkstore/go@v0.2.0` — see [`go/README.md`](go/README.md) |
 | **Extras** | — | `pip install "chunkstore[s3,fastapi,dev]"` |
+
+Docs: [S3 backend](docs/S3.md) · [Chunking guide](docs/CHUNKING.md) · [Rust crate](docs/CRATES.md)
 
 ```bash
 # Full local verify (from repo root)
-CARGO_TARGET_DIR=target cargo build --release -p chunkstore-core
+./scripts/build-core.sh
 cd python && maturin develop --release && pytest -q
 cd ../go/chunkstore && go test -v
 ```

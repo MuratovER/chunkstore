@@ -6,7 +6,16 @@ from chunkstore.store import ChunkStore
 
 
 class ChunkClient:
-    """Convenience client for upload/download/delete operations."""
+    """Convenience client for upload/download/delete operations.
+
+  Thin wrappers over :class:`ChunkStore` with upload-oriented names:
+
+  - ``upload_file`` → ``ChunkStore.ingest``
+  - ``upload_file_cdc`` → ``ChunkStore.ingest_cdc``
+  - ``upload_file_path`` → ``ChunkStore.ingest_file_path``
+  - ``download_file`` → ``ChunkStore.read``
+  - ``delete_file`` → ``ChunkStore.delete``
+  """
 
     def __init__(self, store: ChunkStore) -> None:
         self.store = store

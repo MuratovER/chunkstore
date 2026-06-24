@@ -16,7 +16,7 @@ func TestIngestReadDelete(t *testing.T) {
 	t.Cleanup(store.Close)
 
 	payload := []byte("hello-go-wrapper")
-	if err := store.Ingest("doc", payload); err != nil {
+	if _, err := store.Ingest("doc", payload); err != nil {
 		t.Fatalf("ingest: %v", err)
 	}
 
@@ -50,10 +50,10 @@ func TestDuplicateDedup(t *testing.T) {
 	t.Cleanup(store.Close)
 
 	payload := []byte("shared-payload")
-	if err := store.Ingest("a", payload); err != nil {
+	if _, err := store.Ingest("a", payload); err != nil {
 		t.Fatalf("ingest a: %v", err)
 	}
-	if err := store.Ingest("b", payload); err != nil {
+	if _, err := store.Ingest("b", payload); err != nil {
 		t.Fatalf("ingest b: %v", err)
 	}
 

@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/chunkstore/chunkstore/go/chunkstore"
+	"github.com/MuratovER/chunkstore/go/chunkstore"
 )
 
 func newTestServer(t *testing.T) *httptest.Server {

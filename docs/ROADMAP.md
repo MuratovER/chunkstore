@@ -13,7 +13,7 @@ Status markers:
 
 ---
 
-## v0.1 — foundation (current)
+## v0.1 — foundation
 
 Core embeddable CAS layer with cross-language on-disk format.
 
@@ -28,7 +28,7 @@ Core embeddable CAS layer with cross-language on-disk format.
 | Python `S3Backend` | ✅ | MinIO integration tests in CI (`python-s3` job) |
 | Go wrapper (cgo) | ✅ | `FilesystemBackend`, `S3Backend` (aws-sdk-go-v2) |
 | 9 functional scenarios (Rust) | ✅ | `core/tests/scenarios.rs` |
-| Python scenario tests | ✅ | In-memory + FS |
+| Python scenario tests | ✅ | All 9 scenarios |
 | Go unit tests | ✅ | |
 | Cross-language test | ✅ | Python write → Go read/delete → Python stats |
 | FastAPI example | ✅ | `examples/fastapi/` |
@@ -37,15 +37,14 @@ Core embeddable CAS layer with cross-language on-disk format.
 | CI (Rust, Python, Go, cross-lang, S3/MinIO, deny/audit) | ✅ | `.github/workflows/ci.yml` |
 | README + CONTRIBUTING + charts | ✅ | |
 | PyPI publish workflow | ✅ | `.github/workflows/pypi.yml` — trusted publisher + release deploy |
-| PyPI package live | ✅ | [`chunkstore` 0.1.0](https://pypi.org/project/chunkstore/0.1.0/) on PyPI |
+| PyPI package live | ✅ | [`chunkstore` on PyPI](https://pypi.org/project/chunkstore/) |
 | Go HTTP example | ✅ | `examples/go-http/` |
-| crates.io publish | 📋 | Not automated |
 | Public GitHub repo | ✅ | [github.com/MuratovER/chunkstore](https://github.com/MuratovER/chunkstore) |
 | Dogfood in document service | 📋 | PDF versions / scans / templates |
 
 ---
 
-## v0.2 — distribution & backends
+## v0.2 — distribution & backends (current)
 
 Polish packaging and make S3 + Go production-usable.
 
@@ -57,8 +56,8 @@ Polish packaging and make S3 + Go production-usable.
 | Fix README / badge URLs | ✅ | Links point to `MuratovER/chunkstore` |
 | macOS + Windows wheels | ✅ | `pypi.yml`: Linux + macOS universal2 + Windows x64 (abi3) |
 | TestPyPI smoke in CI | Low | Optional manual `workflow_dispatch` before each release |
-| crates.io crate `chunkstore-core` | Medium | Publish Rust crate; document linking for Go cgo |
-| Go module tagging | Medium | Versioned tags; `go get github.com/MuratovER/chunkstore/go@v0.x` |
+| crates.io crate `chunkstore-core` | ✅ | `.github/workflows/crates-io.yml`; [docs/CRATES.md](CRATES.md) |
+| Go module tagging | ✅ | `go get github.com/MuratovER/chunkstore/go@v0.2.0` |
 
 ### Backends & examples
 
@@ -66,18 +65,18 @@ Polish packaging and make S3 + Go production-usable.
 |------|----------|---------|
 | Go `S3Backend` | ✅ | aws-sdk-go-v2; MinIO tests in CI (`go-s3` job) |
 | S3 integration tests | ✅ | MinIO service in CI (`python-s3` job) |
-| S3 backend hardening | Medium | Retries, timeouts, pagination for large buckets |
+| S3 backend hardening | ✅ | Retries, timeouts; `ListChunkKeys` / `list_chunk_keys` |
 | `examples/go-http/` | ✅ | Upload / download / delete / stats over HTTP |
-| S3 usage docs | Medium | Bucket layout, IAM policy example, prefix conventions |
+| S3 usage docs | ✅ | [docs/S3.md](S3.md) — layout, IAM, MinIO |
 
 ### API & docs
 
 | Task | Priority | Details |
 |------|----------|---------|
-| CDC benchmark docs | Medium | When to pick fixed vs CDC; link `workload_analysis` output |
-| Python API polish | Medium | Consistent naming (`ingest` vs `upload_file` aliases documented) |
-| Go `IngestReader` / path helpers | Medium | Match Rust `ingest_reader_fixed` / CDC |
-| CHANGELOG.md | Medium | Keep per release |
+| CDC benchmark docs | ✅ | [docs/CHUNKING.md](CHUNKING.md) + `workload_analysis` |
+| Python API polish | ✅ | `ingest` ↔ `upload_file` aliases in docstrings |
+| Go `IngestReader` / path helpers | ✅ | `IngestFixed`, `IngestFile`, digest return |
+| CHANGELOG.md | ✅ | [CHANGELOG.md](../CHANGELOG.md) |
 
 ---
 
@@ -91,7 +90,7 @@ Large files and async Python services without loading full blobs in memory.
 | Streaming read in Python | High | `read_to_writer`, async generators |
 | Streaming read in Go | Medium | `io.Writer` target |
 | Async Python API | Medium | `asyncio` wrappers for ingest/read where backend is async (S3) |
-| Python quality in CI | Medium | `ruff check`, `mypy --strict` job |
+| Python quality in CI | ✅ | `python-quality` job: `ruff` + `mypy --strict` |
 | Performance pass | Medium | Profile lock scope; reduce copies on hot path |
 | Fuzz CDC + fixed chunkers | Low | `cargo fuzz` for boundary / panic safety |
 
@@ -117,7 +116,7 @@ Multi-instance and optional encryption — only with a clear design.
 | Task | Status | Notes |
 |------|--------|-------|
 | Pre-commit: fmt, test, deny, clippy | ✅ | |
-| `mypy` / `ruff` in pre-commit or CI | 🚧 | `ruff` in pre-commit; `mypy` still manual |
+| `mypy` / `ruff` in pre-commit or CI | ✅ | `ruff` in pre-commit; `mypy` in CI `python-quality` |
 | Criterion benches in CI (threshold) | 📋 | Optional regression guard |
 | Dependabot / Renovate | 📋 | Rust, Python, Go, GitHub Actions |
 | Issue templates + PR template | 📋 | Bug / feature / question |
@@ -143,13 +142,13 @@ Multi-instance and optional encryption — only with a clear design.
 
 ```mermaid
 flowchart LR
-  A[v0.1.0 shipped] --> B[v0.2 wheels + crates.io + docs]
+  A[v0.1.0 shipped] --> B[v0.2 shipped]
   B --> C[v0.3 streaming read + async Python]
   C --> D[v0.4 distributed metadata]
 ```
 
 1. ~~**Ship v0.1.0**~~ — PyPI `0.1.0`, public repo, CI, S3 backends.
-2. **v0.2** — ~~macOS/Windows wheels~~, crates.io, S3 docs, CHANGELOG.
+2. ~~**v0.2**~~ — crates.io workflow, Go module + API parity, S3 docs/hardening, CHANGELOG.
 3. **v0.3** — streaming read path end-to-end (Rust → FFI → Python/Go).
 
 ---

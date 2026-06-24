@@ -91,7 +91,7 @@ func TestS3IngestReadRoundtrip(t *testing.T) {
 	store, _ := openS3TestStore(t)
 
 	payload := []byte("go-s3-payload")
-	if err := store.Ingest("doc", payload); err != nil {
+	if _, err := store.Ingest("doc", payload); err != nil {
 		t.Fatalf("ingest: %v", err)
 	}
 	got, err := store.Read("doc")
@@ -107,10 +107,10 @@ func TestS3DuplicateDedup(t *testing.T) {
 	store, _ := openS3TestStore(t)
 
 	payload := []byte("shared-go-s3")
-	if err := store.Ingest("a", payload); err != nil {
+	if _, err := store.Ingest("a", payload); err != nil {
 		t.Fatalf("ingest a: %v", err)
 	}
-	if err := store.Ingest("b", payload); err != nil {
+	if _, err := store.Ingest("b", payload); err != nil {
 		t.Fatalf("ingest b: %v", err)
 	}
 	stats, err := store.Stats()
@@ -126,7 +126,7 @@ func TestS3DeleteGC(t *testing.T) {
 	store, backend := openS3TestStore(t)
 
 	payload := []byte("gc-on-go-s3")
-	if err := store.Ingest("only", payload); err != nil {
+	if _, err := store.Ingest("only", payload); err != nil {
 		t.Fatalf("ingest: %v", err)
 	}
 

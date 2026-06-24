@@ -10,7 +10,10 @@ package chunkstore
 import "C"
 
 import (
+	"encoding/json"
 	"errors"
+	"io"
+	"os"
 	"unsafe"
 )
 
@@ -55,30 +58,55 @@ func (s *Store) Close() {
 	}
 }
 
-// Ingest stores a file using fixed-size chunking.
-func (s *Store) Ingest(fileID string, data []byte) error {
-	return s.withErr(func(errOut **C.char) C.int {
-		cid := C.CString(fileID)
-		defer C.free(unsafe.Pointer(cid))
-		var ptr *C.uint8_t
-		if len(data) > 0 {
-			ptr = (*C.uint8_t)(unsafe.Pointer(&data[0]))
-		}
-		return C.chunkstore_ingest(s.handle, cid, ptr, C.size_t(len(data)), errOut)
-	})
+// Ingest stores a file using fixed-size chunking and returns chunk digests.
+func (s *Store) Ingest(fileID string, data []byte) ([]string, error) {
+	return s.ingestWithDigests(func(cid *C.char, ptr *C.uint8_t, length C.size_t, digests **C.char, errOut **C.char) C.int {
+		return C.chunkstore_ingest_with_digests(s.handle, cid, ptr, length, digests, errOut)
+	}, fileID, data)
+}
+
+// IngestFixed stores a file with a custom fixed chunk size.
+func (s *Store) IngestFixed(fileID string, data []byte, chunkSize int) ([]string, error) {
+	if chunkSize <= 0 {
+		return nil, errors.New("chunk size must be positive")
+	}
+	return s.ingestWithDigests(func(cid *C.char, ptr *C.uint8_t, length C.size_t, digests **C.char, errOut **C.char) C.int {
+		return C.chunkstore_ingest_fixed(s.handle, cid, ptr, length, C.size_t(chunkSize), digests, errOut)
+	}, fileID, data)
 }
 
 // IngestCDC stores a file using content-defined chunking.
-func (s *Store) IngestCDC(fileID string, data []byte) error {
-	return s.withErr(func(errOut **C.char) C.int {
-		cid := C.CString(fileID)
-		defer C.free(unsafe.Pointer(cid))
-		var ptr *C.uint8_t
-		if len(data) > 0 {
-			ptr = (*C.uint8_t)(unsafe.Pointer(&data[0]))
-		}
-		return C.chunkstore_ingest_cdc(s.handle, cid, ptr, C.size_t(len(data)), errOut)
-	})
+func (s *Store) IngestCDC(fileID string, data []byte) ([]string, error) {
+	return s.ingestWithDigests(func(cid *C.char, ptr *C.uint8_t, length C.size_t, digests **C.char, errOut **C.char) C.int {
+		return C.chunkstore_ingest_cdc_with_digests(s.handle, cid, ptr, length, digests, errOut)
+	}, fileID, data)
+}
+
+// IngestReader reads all bytes from r and ingests with fixed-size chunking.
+func (s *Store) IngestReader(fileID string, r io.Reader, chunkSize int) ([]string, error) {
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+	return s.IngestFixed(fileID, data, chunkSize)
+}
+
+// IngestFile reads a file from disk and ingests with default fixed chunking.
+func (s *Store) IngestFile(fileID, path string) ([]string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return s.Ingest(fileID, data)
+}
+
+// IngestFileCDC reads a file from disk and ingests with CDC chunking.
+func (s *Store) IngestFileCDC(fileID, path string) ([]string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return s.IngestCDC(fileID, data)
 }
 
 // Read reconstructs file bytes for `fileID`.
@@ -127,6 +155,33 @@ func (s *Store) Stats() (Stats, error) {
 		return rc
 	})
 	return stats, err
+}
+
+type ingestDigestsFn func(cid *C.char, ptr *C.uint8_t, length C.size_t, digests **C.char, errOut **C.char) C.int
+
+func (s *Store) ingestWithDigests(fn ingestDigestsFn, fileID string, data []byte) ([]string, error) {
+	var digestsJSON *C.char
+	err := s.withErr(func(errOut **C.char) C.int {
+		cid := C.CString(fileID)
+		defer C.free(unsafe.Pointer(cid))
+		var ptr *C.uint8_t
+		if len(data) > 0 {
+			ptr = (*C.uint8_t)(unsafe.Pointer(&data[0]))
+		}
+		return fn(cid, ptr, C.size_t(len(data)), &digestsJSON, errOut)
+	})
+	if err != nil {
+		return nil, err
+	}
+	if digestsJSON == nil {
+		return nil, nil
+	}
+	defer C.chunkstore_string_free(digestsJSON)
+	var digests []string
+	if err := json.Unmarshal([]byte(C.GoString(digestsJSON)), &digests); err != nil {
+		return nil, err
+	}
+	return digests, nil
 }
 
 func (s *Store) withErr(fn func(**C.char) C.int) error {

@@ -45,6 +45,31 @@ int chunkstore_ingest_cdc(
     size_t len,
     char **out_err);
 
+int chunkstore_ingest_with_digests(
+    ChunkStoreHandle *store,
+    const char *file_id,
+    const uint8_t *data,
+    size_t len,
+    char **out_digests_json,
+    char **out_err);
+
+int chunkstore_ingest_fixed(
+    ChunkStoreHandle *store,
+    const char *file_id,
+    const uint8_t *data,
+    size_t len,
+    size_t chunk_size,
+    char **out_digests_json,
+    char **out_err);
+
+int chunkstore_ingest_cdc_with_digests(
+    ChunkStoreHandle *store,
+    const char *file_id,
+    const uint8_t *data,
+    size_t len,
+    char **out_digests_json,
+    char **out_err);
+
 int chunkstore_read(
     ChunkStoreHandle *store,
     const char *file_id,

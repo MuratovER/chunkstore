@@ -132,6 +132,18 @@ impl FfiStore {
         }
     }
 
+    fn ingest_fixed(
+        &self,
+        file_id: &str,
+        data: &[u8],
+        chunk_size: usize,
+    ) -> Result<Vec<String>, ChunkStoreError> {
+        match &self.inner {
+            FfiStoreInner::Callback(store) => store.ingest_fixed(file_id, data, chunk_size),
+            FfiStoreInner::Fs(store) => store.ingest_fixed(file_id, data, chunk_size),
+        }
+    }
+
     fn read(&self, file_id: &str) -> Result<Vec<u8>, ChunkStoreError> {
         match &self.inner {
             FfiStoreInner::Callback(store) => store.read(file_id),
@@ -236,6 +248,71 @@ pub unsafe extern "C" fn chunkstore_ingest_cdc(
         file_id,
         data,
         len,
+        out_err,
+        |store, file_id, data| store.ingest_cdc(file_id, data),
+    )
+}
+
+/// Ingest with default fixed chunking; returns digest list as JSON array in `out_digests_json`.
+/// Caller must free with `chunkstore_string_free`.
+#[no_mangle]
+pub unsafe extern "C" fn chunkstore_ingest_with_digests(
+    store: *mut ChunkStoreHandle,
+    file_id: *const c_char,
+    data: *const u8,
+    len: usize,
+    out_digests_json: *mut *mut c_char,
+    out_err: *mut *mut c_char,
+) -> c_int {
+    ingest_with_digests_impl(
+        store,
+        file_id,
+        data,
+        len,
+        out_digests_json,
+        out_err,
+        |store, file_id, data| store.ingest(file_id, data),
+    )
+}
+
+/// Ingest with custom fixed chunk size; returns digest list as JSON array.
+#[no_mangle]
+pub unsafe extern "C" fn chunkstore_ingest_fixed(
+    store: *mut ChunkStoreHandle,
+    file_id: *const c_char,
+    data: *const u8,
+    len: usize,
+    chunk_size: usize,
+    out_digests_json: *mut *mut c_char,
+    out_err: *mut *mut c_char,
+) -> c_int {
+    ingest_with_digests_impl(
+        store,
+        file_id,
+        data,
+        len,
+        out_digests_json,
+        out_err,
+        |store, file_id, data| store.ingest_fixed(file_id, data, chunk_size),
+    )
+}
+
+/// Ingest with CDC chunking; returns digest list as JSON array.
+#[no_mangle]
+pub unsafe extern "C" fn chunkstore_ingest_cdc_with_digests(
+    store: *mut ChunkStoreHandle,
+    file_id: *const c_char,
+    data: *const u8,
+    len: usize,
+    out_digests_json: *mut *mut c_char,
+    out_err: *mut *mut c_char,
+) -> c_int {
+    ingest_with_digests_impl(
+        store,
+        file_id,
+        data,
+        len,
+        out_digests_json,
         out_err,
         |store, file_id, data| store.ingest_cdc(file_id, data),
     )
@@ -375,7 +452,10 @@ unsafe fn ingest_impl<F>(
 where
     F: FnOnce(&mut FfiStore, &str, &[u8]) -> Result<Vec<String>, ChunkStoreError>,
 {
-    if store.is_null() || file_id.is_null() || data.is_null() {
+    if store.is_null() || file_id.is_null() {
+        return CHUNKSTORE_ERR;
+    }
+    if len > 0 && data.is_null() {
         return CHUNKSTORE_ERR;
     }
 
@@ -387,7 +467,11 @@ where
             return CHUNKSTORE_ERR;
         }
     };
-    let data = std::slice::from_raw_parts(data, len);
+    let data = if len == 0 {
+        &[]
+    } else {
+        std::slice::from_raw_parts(data, len)
+    };
 
     match f(store, file_id, data) {
         Ok(_) => CHUNKSTORE_OK,
@@ -396,6 +480,63 @@ where
             CHUNKSTORE_ERR
         }
     }
+}
+
+unsafe fn ingest_with_digests_impl<F>(
+    store: *mut ChunkStoreHandle,
+    file_id: *const c_char,
+    data: *const u8,
+    len: usize,
+    out_digests_json: *mut *mut c_char,
+    out_err: *mut *mut c_char,
+    f: F,
+) -> c_int
+where
+    F: FnOnce(&mut FfiStore, &str, &[u8]) -> Result<Vec<String>, ChunkStoreError>,
+{
+    if store.is_null() || file_id.is_null() || out_digests_json.is_null() {
+        return CHUNKSTORE_ERR;
+    }
+    if len > 0 && data.is_null() {
+        return CHUNKSTORE_ERR;
+    }
+
+    let store = &mut *(store as *mut FfiStore);
+    let file_id = match CStr::from_ptr(file_id).to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            write_ffi_error(out_err, e.to_string());
+            return CHUNKSTORE_ERR;
+        }
+    };
+    let data = if len == 0 {
+        &[]
+    } else {
+        std::slice::from_raw_parts(data, len)
+    };
+
+    match f(store, file_id, data) {
+        Ok(digests) => match digests_to_json_cstring(&digests) {
+            Ok(json) => {
+                *out_digests_json = json.into_raw();
+                CHUNKSTORE_OK
+            }
+            Err(e) => {
+                write_ffi_error(out_err, e.to_string());
+                CHUNKSTORE_ERR
+            }
+        },
+        Err(e) => {
+            write_ffi_error(out_err, e.to_string());
+            CHUNKSTORE_ERR
+        }
+    }
+}
+
+fn digests_to_json_cstring(digests: &[String]) -> Result<std::ffi::CString, ChunkStoreError> {
+    let json = serde_json::to_string(digests)
+        .map_err(|e| ChunkStoreError::invalid_argument(format!("digest json: {e}")))?;
+    std::ffi::CString::new(json).map_err(|e| ChunkStoreError::invalid_argument(e.to_string()))
 }
 
 unsafe fn write_ffi_error(out_err: *mut *mut c_char, message: String) {

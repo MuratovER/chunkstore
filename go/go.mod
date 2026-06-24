@@ -1,4 +1,4 @@
-module github.com/chunkstore/chunkstore/go
+module github.com/MuratovER/chunkstore/go
 
 go 1.24
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
+from typing import Optional, cast
 
 
 class FilesystemBackend:
@@ -59,15 +59,24 @@ class S3Backend:
         *,
         endpoint_url: str | None = None,
         region_name: str | None = None,
+        connect_timeout: int = 10,
+        read_timeout: int = 60,
+        max_attempts: int = 3,
     ) -> None:
         try:
             import boto3
+            from botocore.config import Config
             from botocore.exceptions import ClientError
         except ImportError as exc:  # pragma: no cover
             raise RuntimeError("S3Backend requires boto3; install chunkstore[s3]") from exc
 
         self._client_error = ClientError
-        kwargs: dict[str, str] = {}
+        config = Config(
+            connect_timeout=connect_timeout,
+            read_timeout=read_timeout,
+            retries={"max_attempts": max_attempts, "mode": "adaptive"},
+        )
+        kwargs: dict[str, object] = {"config": config}
         if endpoint_url is not None:
             kwargs["endpoint_url"] = endpoint_url
         if region_name is not None:
@@ -92,7 +101,8 @@ class S3Backend:
             if self._missing_key(exc):
                 return None
             raise
-        return response["Body"].read()
+        body = response["Body"].read()
+        return cast(bytes, body)
 
     def put(self, key: str, data: bytes) -> None:
         self._client.put_object(Bucket=self.bucket, Key=self._key(key), Body=data)
@@ -108,3 +118,20 @@ class S3Backend:
 
     def delete(self, key: str) -> None:
         self._client.delete_object(Bucket=self.bucket, Key=self._key(key))
+
+    def list_chunk_keys(self) -> list[str]:
+        """List raw chunk digest keys (64-char hex) under the backend prefix."""
+        import re
+
+        digest_re = re.compile(r"^[0-9a-f]{64}$")
+        prefix = f"{self.prefix}/" if self.prefix else ""
+        keys: list[str] = []
+        paginator = self._client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=self.bucket, Prefix=prefix):
+            for obj in page.get("Contents", []):
+                rel = obj["Key"][len(prefix) :]
+                if "/" in rel:
+                    continue
+                if digest_re.fullmatch(rel):
+                    keys.append(rel)
+        return keys

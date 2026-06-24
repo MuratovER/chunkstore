@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/chunkstore/chunkstore/go/chunkstore"
+	"github.com/MuratovER/chunkstore/go/chunkstore"
 )
 
 type statsJSON struct {
@@ -49,7 +49,7 @@ func (s *server) upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.store.Ingest(fileID, body); err != nil {
+	if _, err := s.store.Ingest(fileID, body); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

@@ -65,6 +65,31 @@ def test_scenario_05_delete_last_file_gcs(fs_store: ChunkStore, tmp_path: Path) 
     assert not (root / digest).exists()
 
 
+def test_scenario_06_concurrent_upload_single_chunk(memory_store: ChunkStore) -> None:
+    import threading
+
+    payload = b"concurrent-same"
+    results: list[list[str]] = []
+    errors: list[BaseException | None] = [None, None]
+
+    def worker(idx: int) -> None:
+        try:
+            results.append(memory_store.ingest(f"doc-{idx}", payload))
+        except BaseException as exc:
+            errors[idx] = exc
+
+    threads = [threading.Thread(target=worker, args=(i,)) for i in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert errors == [None, None]
+    assert len(results) == 2
+    assert results[0][0] == results[1][0]
+    assert memory_store.stats().savings_pct > 0.0
+
+
 def test_scenario_07_streaming_upload_from_disk(memory_store: ChunkStore) -> None:
     data = bytes([5]) * (256 * 1024 + 17)
     with tempfile.NamedTemporaryFile() as tmp:

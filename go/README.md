@@ -1,22 +1,32 @@
 # Go wrapper
 
-```bash
-# Build the Rust static library first
-cd ..
-CARGO_TARGET_DIR=target cargo build --release -p chunkstore-core
+Module: `github.com/MuratovER/chunkstore/go`
+Import: `github.com/MuratovER/chunkstore/go/chunkstore`
 
-cd go/chunkstore
-go test -v
+```bash
+# From repository root — build Rust static lib, then test Go
+./scripts/build-core.sh
+cd go/chunkstore && go test -v
 ```
 
-The Go package links against `target/release/libchunkstore.a`.
+```bash
+# As a dependency (after tagging, e.g. v0.2.0)
+go get github.com/MuratovER/chunkstore/go@v0.2.0
+./scripts/build-core.sh   # required: cgo links target/release/libchunkstore.a
+```
+
+The Go package links against `target/release/libchunkstore.a`. See [docs/CRATES.md](../docs/CRATES.md).
 
 ## Backends
 
 **Filesystem** (built-in C helper):
 
 ```go
+import "github.com/MuratovER/chunkstore/go/chunkstore"
+
 store, err := chunkstore.OpenFilesystem("/data/chunks")
+defer store.Close()
+digests, err := store.Ingest("doc", []byte("hello"))
 ```
 
 **S3** (AWS or MinIO via aws-sdk-go-v2):
@@ -31,6 +41,8 @@ defer store.Close()
 ```
 
 Credentials and region follow the standard AWS SDK chain (`AWS_ACCESS_KEY_ID`, `AWS_DEFAULT_REGION`, etc.).
+
+See [docs/S3.md](../docs/S3.md) for bucket layout and IAM.
 
 ### S3 integration tests (MinIO)
 
@@ -52,6 +64,6 @@ Python writes to a shared FS backend, Go reads and deletes, Python verifies stat
 
 ```bash
 # from repository root
-CARGO_TARGET_DIR=target cargo build --release -p chunkstore-core
+./scripts/build-core.sh
 cd python && maturin develop --release && pytest -m cross_lang -v
 ```
