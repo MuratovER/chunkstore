@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "chunkstore"
-version = "0.1.0"
+version = "0.1.1"
 description = "Content-addressed chunk storage with deduplication"
 readme = "../README.md"
 requires-python = ">=3.10"
@@ -20,6 +20,8 @@ classifiers = [
     "Programming Language :: Rust",
     "License :: OSI Approved :: MIT License",
     "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
     "Topic :: System :: Archiving",
 ]
 
@@ -32,7 +34,7 @@ Issues = "https://github.com/MuratovER/chunkstore/issues"
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "mypy>=1.8", "ruff>=0.4"]
 s3 = ["boto3>=1.34"]
-fastapi = ["fastapi>=0.110", "uvicorn>=0.27", "python-multipart>=0.0.9"]
+fastapi = ["fastapi>=0.110", "uvicorn>=0.27", "python-multipart>=0.0.9", "httpx>=0.27"]
 
 [tool.maturin]
 manifest-path = "Cargo.toml"
@@ -41,7 +43,7 @@ python-source = "python_src"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["cross_lang: requires Go toolchain and built libchunkstore"]
+markers = ["cross_lang: requires Go toolchain and built libchunkstore", "s3: requires S3-compatible endpoint (MinIO)"]
 
 [tool.ruff]
 line-length = 100

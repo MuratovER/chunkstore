@@ -17,6 +17,7 @@ import (
 // Store wraps the Rust chunkstore core via C-API.
 type Store struct {
 	handle *C.ChunkStoreHandle
+	keep   any // keeps callback userdata alive for Open()-backed stores
 }
 
 // OpenFilesystem creates a store backed by on-disk chunk files.
@@ -30,6 +31,15 @@ func OpenFilesystem(root string) (*Store, error) {
 	}
 
 	return &Store{handle: handle}, nil
+}
+
+// OpenS3 creates a store backed by S3 (or S3-compatible object storage).
+func OpenS3(opts S3Options) (*Store, error) {
+	backend, err := NewS3Backend(opts)
+	if err != nil {
+		return nil, err
+	}
+	return Open(backend)
 }
 
 // Close releases native store resources.

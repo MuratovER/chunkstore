@@ -15,4 +15,4 @@ Optional extras:
 pip install ".[dev,s3,fastapi]"
 ```
 
-**PyPI:** install with `pip install chunkstore`. Maintainer release flow: [docs/PYPI.md](../docs/PYPI.md).
+**PyPI:** `pip install chunkstore` — [chunkstore 0.1.0](https://pypi.org/project/chunkstore/0.1.0/). Maintainer release flow: [docs/PYPI.md](../docs/PYPI.md).

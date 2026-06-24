@@ -46,26 +46,50 @@ class FilesystemBackend:
 
 
 class S3Backend:
-    """Optional S3 backend (requires boto3)."""
+    """Optional S3 backend (requires boto3).
 
-    def __init__(self, bucket: str, prefix: str = "chunks") -> None:
+    Credentials and region follow the usual boto3 chain (env vars, shared config).
+    Pass ``endpoint_url`` for S3-compatible stores (MinIO, LocalStack).
+    """
+
+    def __init__(
+        self,
+        bucket: str,
+        prefix: str = "chunks",
+        *,
+        endpoint_url: str | None = None,
+        region_name: str | None = None,
+    ) -> None:
         try:
             import boto3
+            from botocore.exceptions import ClientError
         except ImportError as exc:  # pragma: no cover
             raise RuntimeError("S3Backend requires boto3; install chunkstore[s3]") from exc
 
-        self._client = boto3.client("s3")
+        self._client_error = ClientError
+        kwargs: dict[str, str] = {}
+        if endpoint_url is not None:
+            kwargs["endpoint_url"] = endpoint_url
+        if region_name is not None:
+            kwargs["region_name"] = region_name
+        self._client = boto3.client("s3", **kwargs)
         self.bucket = bucket
         self.prefix = prefix.strip("/")
 
     def _key(self, key: str) -> str:
         return f"{self.prefix}/{key}" if self.prefix else key
 
+    def _missing_key(self, exc: BaseException) -> bool:
+        if not isinstance(exc, self._client_error):
+            return False
+        code = exc.response.get("Error", {}).get("Code", "")
+        return code in {"404", "NoSuchKey", "NotFound"}
+
     def get(self, key: str) -> bytes | None:
         try:
             response = self._client.get_object(Bucket=self.bucket, Key=self._key(key))
-        except Exception as exc:
-            if exc.__class__.__name__ in {"NoSuchKey", "404"}:
+        except self._client_error as exc:
+            if self._missing_key(exc):
                 return None
             raise
         return response["Body"].read()
@@ -76,8 +100,10 @@ class S3Backend:
     def exists(self, key: str) -> bool:
         try:
             self._client.head_object(Bucket=self.bucket, Key=self._key(key))
-        except Exception:
-            return False
+        except self._client_error as exc:
+            if self._missing_key(exc):
+                return False
+            raise
         return True
 
     def delete(self, key: str) -> None:

@@ -334,6 +334,19 @@ pub unsafe extern "C" fn chunkstore_stats(
     }
 }
 
+/// Allocate a buffer for backend `get` callbacks. Free with `chunkstore_bytes_free`.
+#[no_mangle]
+pub unsafe extern "C" fn chunkstore_bytes_alloc(len: usize) -> *mut u8 {
+    if len == 0 {
+        return ptr::null_mut();
+    }
+    let mut bytes = Vec::with_capacity(len);
+    bytes.resize(len, 0);
+    let ptr = bytes.as_mut_ptr();
+    std::mem::forget(bytes);
+    ptr
+}
+
 /// Free buffers allocated by the Rust FFI layer.
 #[no_mangle]
 pub unsafe extern "C" fn chunkstore_bytes_free(ptr: *mut u8, len: usize) {

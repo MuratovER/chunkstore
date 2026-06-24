@@ -32,7 +32,7 @@ jobs:
           name: package-sdist
           path: python/dist/*
 
-  build-wheels:
+  build-wheels-linux:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -52,13 +52,51 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: package-wheel-${{ matrix.target }}
+          name: package-wheel-linux-${{ matrix.target }}
+          path: python/dist/*
+
+  build-wheels-macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: PyO3/maturin-action@v1
+        with:
+          working-directory: python
+          target: universal2-apple-darwin
+          command: build
+          args: --release --out dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-wheel-macos-universal2
+          path: python/dist/*
+
+  build-wheels-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: PyO3/maturin-action@v1
+        with:
+          working-directory: python
+          target: x64
+          command: build
+          args: --release --out dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-wheel-windows-x64
           path: python/dist/*
 
   publish:
     name: Publish packages
     runs-on: ubuntu-latest
-    needs: [build-sdist, build-wheels]
+    needs:
+      - build-sdist
+      - build-wheels-linux
+      - build-wheels-macos
+      - build-wheels-windows
     environment:
       name: ${{ (github.event_name == 'workflow_dispatch' && inputs.testpypi) && 'testpypi' || 'pypi' }}
     permissions:

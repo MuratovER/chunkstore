@@ -25,21 +25,22 @@ Core embeddable CAS layer with cross-language on-disk format.
 | Rust `FsBackend` | ✅ | |
 | C-API / FFI | ✅ | `core/include/chunkstore.h` |
 | Python wrapper (PyO3 / maturin) | ✅ | `FilesystemBackend` |
-| Python `S3Backend` | 🚧 | Code exists; no CI / integration tests |
-| Go wrapper (cgo) | ✅ | `FilesystemBackend` only |
+| Python `S3Backend` | ✅ | MinIO integration tests in CI (`python-s3` job) |
+| Go wrapper (cgo) | ✅ | `FilesystemBackend`, `S3Backend` (aws-sdk-go-v2) |
 | 9 functional scenarios (Rust) | ✅ | `core/tests/scenarios.rs` |
 | Python scenario tests | ✅ | In-memory + FS |
 | Go unit tests | ✅ | |
 | Cross-language test | ✅ | Python write → Go read/delete → Python stats |
 | FastAPI example | ✅ | `examples/fastapi/` |
+| FastAPI backup example | ✅ | `examples/fastapi-backup/` — gzip dumps + date catalog |
 | Workload analysis + benches | ✅ | `workload_analysis`, criterion benches |
-| CI (Rust, Python, Go, cross-lang, deny/audit) | ✅ | `.github/workflows/ci.yml` |
+| CI (Rust, Python, Go, cross-lang, S3/MinIO, deny/audit) | ✅ | `.github/workflows/ci.yml` |
 | README + CONTRIBUTING + charts | ✅ | |
-| PyPI publish workflow | 🚧 | `.github/workflows/pypi.yml` — needs trusted publisher + first release |
-| PyPI package live | 📋 | `pip install chunkstore` |
-| Go HTTP example | 📋 | Stub only: `examples/go-http/` |
+| PyPI publish workflow | ✅ | `.github/workflows/pypi.yml` — trusted publisher + release deploy |
+| PyPI package live | ✅ | [`chunkstore` 0.1.0](https://pypi.org/project/chunkstore/0.1.0/) on PyPI |
+| Go HTTP example | ✅ | `examples/go-http/` |
 | crates.io publish | 📋 | Not automated |
-| Public GitHub repo | 📋 | Maintainer decision |
+| Public GitHub repo | ✅ | [github.com/MuratovER/chunkstore](https://github.com/MuratovER/chunkstore) |
 | Dogfood in document service | 📋 | PDF versions / scans / templates |
 
 ---
@@ -52,9 +53,9 @@ Polish packaging and make S3 + Go production-usable.
 
 | Task | Priority | Details |
 |------|----------|---------|
-| First PyPI release | High | Trusted publisher on PyPI; GitHub Release `v0.1.0` — see [PYPI.md](PYPI.md) |
-| Fix README / badge URLs | High | Point CI badge and links to `MuratovER/chunkstore` |
-| macOS + Windows wheels | Medium | Extend `pypi.yml` matrix (abi3 helps on macOS) |
+| First PyPI release | ✅ | `v0.1.0` — [pypi.org/project/chunkstore](https://pypi.org/project/chunkstore/) |
+| Fix README / badge URLs | ✅ | Links point to `MuratovER/chunkstore` |
+| macOS + Windows wheels | ✅ | `pypi.yml`: Linux + macOS universal2 + Windows x64 (abi3) |
 | TestPyPI smoke in CI | Low | Optional manual `workflow_dispatch` before each release |
 | crates.io crate `chunkstore-core` | Medium | Publish Rust crate; document linking for Go cgo |
 | Go module tagging | Medium | Versioned tags; `go get github.com/MuratovER/chunkstore/go@v0.x` |
@@ -63,10 +64,10 @@ Polish packaging and make S3 + Go production-usable.
 
 | Task | Priority | Details |
 |------|----------|---------|
-| Go `S3Backend` | High | Parity with Python `S3Backend` (aws-sdk-go-v2) |
-| S3 integration tests | High | LocalStack or MinIO in CI (optional job) |
+| Go `S3Backend` | ✅ | aws-sdk-go-v2; MinIO tests in CI (`go-s3` job) |
+| S3 integration tests | ✅ | MinIO service in CI (`python-s3` job) |
 | S3 backend hardening | Medium | Retries, timeouts, pagination for large buckets |
-| `examples/go-http/` | Medium | Upload / download / delete / stats over HTTP |
+| `examples/go-http/` | ✅ | Upload / download / delete / stats over HTTP |
 | S3 usage docs | Medium | Bucket layout, IAM policy example, prefix conventions |
 
 ### API & docs
@@ -142,13 +143,13 @@ Multi-instance and optional encryption — only with a clear design.
 
 ```mermaid
 flowchart LR
-  A[v0.1.0 PyPI + public repo] --> B[v0.2 S3 + Go HTTP + wheels]
+  A[v0.1.0 shipped] --> B[v0.2 wheels + crates.io + docs]
   B --> C[v0.3 streaming read + async Python]
   C --> D[v0.4 distributed metadata]
 ```
 
-1. **Ship v0.1.0** — PyPI trusted publisher, tag, release, fix badge URLs.
-2. **v0.2** — Go S3, S3 tests, Go HTTP example, broader wheels.
+1. ~~**Ship v0.1.0**~~ — PyPI `0.1.0`, public repo, CI, S3 backends.
+2. **v0.2** — ~~macOS/Windows wheels~~, crates.io, S3 docs, CHANGELOG.
 3. **v0.3** — streaming read path end-to-end (Rust → FFI → Python/Go).
 
 ---

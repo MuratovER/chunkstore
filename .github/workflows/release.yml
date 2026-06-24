@@ -1,0 +1,50 @@
+name: Release
+
+# When `version` in Cargo.toml is bumped on main and the tag does not exist yet,
+# create a GitHub Release. That triggers `pypi.yml` (release: published).
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  maybe-release:
+    name: Create release when version is new
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read package version
+        id: meta
+        run: |
+          VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Check if tag already exists
+        id: tag
+        run: |
+          if git rev-parse "${{ steps.meta.outputs.tag }}" >/dev/null 2>&1; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "Tag ${{ steps.meta.outputs.tag }} already exists — skip."
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "Will create release ${{ steps.meta.outputs.tag }}."
+          fi
+
+      - name: Create GitHub release
+        if: steps.tag.outputs.publish == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.tag }}
+          generate_release_notes: true

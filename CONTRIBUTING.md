@@ -47,6 +47,7 @@ pytest -q
 cd ../..
 CARGO_TARGET_DIR=target cargo build --release -p chunkstore-core
 cd go/chunkstore && go test -v
+go test -v -tags s3    # needs MinIO (see go/README.md)
 ```
 
 ### Pre-commit hooks
@@ -75,6 +76,7 @@ cd python
 maturin develop --release
 pytest -q
 pytest -m cross_lang -q    # needs Go + built libchunkstore.a
+pytest -m s3 -q            # needs MinIO (see CI python-s3 job env vars)
 
 cd ../go/chunkstore
 go test -v
@@ -109,7 +111,7 @@ chunkstore/
 │   ├── src/lib.rs        # Native module
 │   └── python_src/       # Pure Python API
 ├── go/chunkstore/        # cgo wrapper (links libchunkstore.a)
-├── examples/             # FastAPI, Go HTTP (planned)
+├── examples/             # FastAPI, FastAPI backup, Go HTTP
 └── docs/images/          # README diagrams (SVG source + PNG for GitHub)
 ```
 
@@ -143,7 +145,8 @@ Use clear commit messages. One logical change per PR when possible.
 |------|-------|----------------|
 | Rust core | `core/tests/`, `#[cfg(test)]` in modules | Chunking, refcount GC, persistence, errors |
 | Python | `python/tests/` | Scenario tests, API roundtrips |
-| Go | `go/chunkstore/*_test.go` | FS backend, ingest/read/delete |
+| Python S3 | `pytest -m s3` | S3 backend against MinIO (`S3_ENDPOINT_URL`) |
+| Go | `go/chunkstore/*_test.go` | FS + S3 backends (`-tags s3` for MinIO) |
 | Cross-language | `pytest -m cross_lang` | Any change to on-disk format or metadata keys |
 
 **Required scenarios** (must keep passing):
@@ -197,7 +200,9 @@ Key modules:
 ### Go (`go/`)
 
 - `go fmt` / `go vet`
+- `FilesystemBackend`, `S3Backend` (`OpenS3`), generic `Open(Backend)` via C callbacks
 - cgo links `target/release/libchunkstore.a` — build core before `go test`
+- S3 tests: `go test -tags s3` with MinIO (see [go/README.md](go/README.md))
 - Do not reimplement persistence layout in Go
 
 ### C-API (`core/include/chunkstore.h`)
@@ -205,6 +210,7 @@ Key modules:
 Treat as **stable-ish** for v0.1:
 
 - Adding functions is OK
+- `chunkstore_bytes_alloc` / `chunkstore_bytes_free` pair buffers returned from backend `get` callbacks
 - Changing signatures or memory contract requires updating Go bindings and documenting in the PR
 
 ---
@@ -262,8 +268,9 @@ When in doubt:
 
 ## Release / versioning (maintainers)
 
-- Workspace version: [`Cargo.toml`](../Cargo.toml) + [`python/pyproject.toml`](../python/pyproject.toml) — keep in sync
-- **PyPI:** see [docs/PYPI.md](../docs/PYPI.md) — GitHub Release → automatic publish via trusted publishing
+- Workspace version: [`Cargo.toml`](../Cargo.toml) + [`python/pyproject.toml`](../python/pyproject.toml) + [`python_src/chunkstore/__init__.py`](../python/python_src/chunkstore/__init__.py) — keep in sync
+- **Release:** bump version, push to `main` → [`release.yml`](../.github/workflows/release.yml) tags + GitHub Release → [`pypi.yml`](../.github/workflows/pypi.yml) publishes to PyPI
+- **PyPI:** see [docs/PYPI.md](../docs/PYPI.md)
 - **Roadmap:** [docs/ROADMAP.md](../docs/ROADMAP.md)
 - Semantic versioning intended after v1.0
 - crates.io publish — not automated yet

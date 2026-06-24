@@ -2,6 +2,8 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/MuratovER/chunkstore/actions/workflows/ci.yml/badge.svg)](https://github.com/MuratovER/chunkstore/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/chunkstore.svg)](https://pypi.org/project/chunkstore/)
+[![Python](https://img.shields.io/pypi/pyversions/chunkstore.svg)](https://pypi.org/project/chunkstore/)
 [![Rust](https://img.shields.io/badge/core-Rust-orange.svg)](core/)
 [![Bindings](https://img.shields.io/badge/bindings-Python%20%7C%20Go-blue.svg)](python/)
 
@@ -36,10 +38,10 @@
 
 ## Quick start
 
-**30 seconds — Python** (filesystem backend):
+**30 seconds — Python** (PyPI, Linux / macOS / Windows wheels):
 
 ```bash
-cd python && maturin develop --release
+pip install chunkstore
 ```
 
 ```python
@@ -49,6 +51,12 @@ store = ChunkStore.open(FilesystemBackend("/data/chunks"))
 store.ingest("doc_v1", b"hello world")
 assert store.read("doc_v1") == b"hello world"
 print(store.stats())  # savings_pct grows as you deduplicate
+```
+
+**From source** (all platforms, or hacking on the wrapper):
+
+```bash
+cd python && maturin develop --release
 ```
 
 **Rust:**
@@ -246,7 +254,7 @@ file → chunks → SHA-256 (64-char hex) → backend
 |-------|------|
 | [`core/`](core/) | Rust: chunking, hashing, manifests, refcount, C-API |
 | [`python/`](python/) | PyO3/maturin wrapper + FS/S3 backends |
-| [`go/`](go/) | cgo wrapper + FS backend |
+| [`go/`](go/) | cgo wrapper + FS/S3 backends |
 
 **Metadata keys** (shared across languages):
 
@@ -312,10 +320,11 @@ CI verifies: **Python write → Go read/delete → Python stats** (`pytest -m cr
 
 | Language | Requirements | Command |
 |----------|--------------|---------|
+| **Python** | Python 3.10+ | `pip install chunkstore` — Linux, macOS, Windows wheels ([PyPI](https://pypi.org/project/chunkstore/)) |
+| **Python (dev)** | Rust (maturin) | `cd python && maturin develop --release` |
 | **Rust** | Rust 1.70+ | `cargo build --release -p chunkstore-core` |
-| **Python** | Python 3.10+, Rust (maturin) | `cd python && maturin develop --release` |
 | **Go** | Go 1.22+, built `libchunkstore.a` | See [`go/README.md`](go/README.md) |
-| **Dev** | pytest, go toolchain | `pip install ".[dev]"` in `python/` |
+| **Extras** | — | `pip install "chunkstore[s3,fastapi,dev]"` |
 
 ```bash
 # Full local verify (from repo root)
@@ -331,11 +340,28 @@ cd ../go/chunkstore && go test -v
 | Example | Description |
 |---------|-------------|
 | [`examples/fastapi/`](examples/fastapi/) | Upload / download / delete HTTP API |
-| [`examples/go-http/`](examples/go-http/) | Go HTTP service (planned) |
+| [`examples/fastapi-backup/`](examples/fastapi-backup/) | Gzip backup dumps + SQLite date catalog |
+| [`examples/go-http/`](examples/go-http/) | Go HTTP service (upload / download / delete / stats) |
+
+**FastAPI (basic):**
 
 ```bash
 cd python && maturin develop --release && pip install ".[fastapi]"
 PYTHONPATH=../examples/fastapi uvicorn main:app --reload
+```
+
+**FastAPI (backup storage pattern):**
+
+```bash
+cd python && maturin develop --release && pip install ".[fastapi]"
+PYTHONPATH=examples/fastapi-backup uvicorn main:app --host 0.0.0.0 --port 8081 --reload
+```
+
+**Go HTTP:**
+
+```bash
+CARGO_TARGET_DIR=target cargo build --release -p chunkstore-core
+cd examples/go-http && go run .
 ```
 
 Endpoints: `POST /files/{id}`, `GET /files/{id}`, `DELETE /files/{id}`, `GET /stats`.

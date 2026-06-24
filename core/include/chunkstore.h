@@ -57,6 +57,7 @@ int chunkstore_delete(ChunkStoreHandle *store, const char *file_id, char **out_e
 int chunkstore_stats(ChunkStoreHandle *store, ChunkstoreStats *out_stats, char **out_err);
 
 void chunkstore_bytes_free(uint8_t *ptr, size_t len);
+uint8_t *chunkstore_bytes_alloc(size_t len);
 void chunkstore_string_free(char *ptr);
 
 #ifdef __cplusplus
