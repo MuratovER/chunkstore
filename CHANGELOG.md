@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.2.1] - 2026-06-24
+
+### Fixed
+
+- Core: serialize concurrent chunk puts on the filesystem backend (unique temp files + lock around exists/put) so parallel ingests of the same digest no longer race
+- CI: chain PyPI and crates.io publish after the Release workflow (`workflow_run` gate); GITHUB_TOKEN releases do not emit `release:published` to other workflows
+
 ## [0.2.0] - 2026-06-24
 
 ### Added
@@ -40,5 +47,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 - Initial public release: Rust core, Python wrapper (PyPI), Go cgo wrapper, FS + S3 backends, cross-language format, FastAPI and go-http examples.
 
+[0.2.1]: https://github.com/MuratovER/chunkstore/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/MuratovER/chunkstore/compare/v0.1.1...v0.2.0
 [0.1.x]: https://github.com/MuratovER/chunkstore/releases/tag/v0.1.0
