@@ -77,6 +77,18 @@ int chunkstore_read(
     size_t *out_len,
     char **out_err);
 
+typedef int (*ChunkstoreWriteCallback)(
+    const uint8_t *data,
+    size_t len,
+    void *userdata);
+
+int chunkstore_read_to_writer(
+    ChunkStoreHandle *store,
+    const char *file_id,
+    ChunkstoreWriteCallback write_cb,
+    void *userdata,
+    char **out_err);
+
 int chunkstore_delete(ChunkStoreHandle *store, const char *file_id, char **out_err);
 
 int chunkstore_stats(ChunkStoreHandle *store, ChunkstoreStats *out_stats, char **out_err);

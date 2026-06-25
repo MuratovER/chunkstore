@@ -25,7 +25,7 @@ HTTP upload / directory scan
 
 | Module | Role |
 |--------|------|
-| [`main.py`](main.py) | FastAPI routes, env config, orchestration |
+| [`main.py`](main.py) | FastAPI routes, env config, orchestration (sync `ChunkStore`; async migration TODO) |
 | [`backup.py`](backup.py) | Pack directory/upload into gzip; decompress on download |
 | [`catalog.py`](catalog.py) | SQLite index; **date-range queries** (`list_by_date`) |
 

@@ -9,7 +9,7 @@ pub use manifest::Manifest;
 pub use refcount::RefCount;
 pub use stats::Stats;
 
-use std::io::Read;
+use std::io::{Read, Write};
 use std::sync::{Arc, Mutex};
 
 use crate::chunker::{chunk_reader, CdcChunker, Chunker, FixedChunker};
@@ -261,24 +261,49 @@ impl<B: ChunkBackend> ChunkStore<B> {
         Ok(())
     }
 
-    pub fn read(&self, file_id: &str) -> Result<Vec<u8>, ChunkStoreError> {
-        let digests = {
-            let manifest = self
-                .manifest
-                .lock()
-                .map_err(|_| ChunkStoreError::LockError)?;
-            manifest.get(file_id)?.to_vec()
-        };
+    /// Ordered chunk digests for a stored file.
+    pub fn file_digests(&self, file_id: &str) -> Result<Vec<String>, ChunkStoreError> {
+        self.digests_for_file(file_id)
+    }
 
-        let mut out = Vec::new();
-        for digest in digests {
-            let chunk = self
-                .backend
-                .get(&digest)?
-                .ok_or_else(|| ChunkStoreError::not_found(format!("chunk {digest}")))?;
-            verify_digest(&chunk, &digest)?;
-            out.extend_from_slice(&chunk);
+    /// Fetch and verify a single chunk payload by digest.
+    pub fn read_chunk(&self, digest: &str) -> Result<Vec<u8>, ChunkStoreError> {
+        self.read_chunk_by_digest(digest)
+    }
+
+    fn digests_for_file(&self, file_id: &str) -> Result<Vec<String>, ChunkStoreError> {
+        let manifest = self
+            .manifest
+            .lock()
+            .map_err(|_| ChunkStoreError::LockError)?;
+        manifest.get(file_id).map(<[String]>::to_vec)
+    }
+
+    fn read_chunk_by_digest(&self, digest: &str) -> Result<Vec<u8>, ChunkStoreError> {
+        let chunk = self
+            .backend
+            .get(digest)?
+            .ok_or_else(|| ChunkStoreError::not_found(format!("chunk {digest}")))?;
+        verify_digest(&chunk, digest)?;
+        Ok(chunk)
+    }
+
+    /// Stream verified chunk payloads to `writer` without assembling the full file in memory.
+    pub fn read_to_writer<W: Write>(
+        &self,
+        file_id: &str,
+        writer: &mut W,
+    ) -> Result<(), ChunkStoreError> {
+        for digest in self.digests_for_file(file_id)? {
+            let chunk = self.read_chunk_by_digest(&digest)?;
+            writer.write_all(&chunk)?;
         }
+        Ok(())
+    }
+
+    pub fn read(&self, file_id: &str) -> Result<Vec<u8>, ChunkStoreError> {
+        let mut out = Vec::new();
+        self.read_to_writer(file_id, &mut out)?;
         Ok(out)
     }
 
@@ -376,6 +401,18 @@ impl<B: ChunkBackend> std::fmt::Debug for ChunkStore<B> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn read_to_writer_streams_chunks() {
+        let store = ChunkStore::open(MemoryBackend::new()).unwrap();
+        let chunk_size = 64usize;
+        let payload = vec![0xABu8; chunk_size * 2 + 10];
+        store.ingest_fixed("parts", &payload, chunk_size).unwrap();
+
+        let mut streamed = Vec::new();
+        store.read_to_writer("parts", &mut streamed).unwrap();
+        assert_eq!(streamed, payload);
+    }
 
     #[test]
     fn ingest_and_read_roundtrip() {

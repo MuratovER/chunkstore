@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from pathlib import Path
 from typing import BinaryIO, cast
 
@@ -18,6 +19,8 @@ class ChunkStore:
   | ``ingest_cdc``              | ``upload_file_cdc``       |
   | ``ingest_file_path``        | ``upload_file_path``      |
   | ``read``                    | ``download_file``         |
+  | ``read_to_writer``          | ``download_file_to``      |
+  | ``iter_chunks``             | —                         |
   | ``delete``                  | ``delete_file``           |
   +---------------------------+---------------------------+
 
@@ -56,6 +59,28 @@ class ChunkStore:
     def read(self, file_id: str) -> bytes:
         """Reconstruct file bytes. Alias: ``ChunkClient.download_file``."""
         return cast(bytes, self._handle.read(file_id))
+
+    def read_to_writer(self, file_id: str, writer: BinaryIO) -> None:
+        """Stream verified chunk payloads to ``writer`` without holding the full file in memory."""
+        self._handle.read_to_writer(file_id, writer)
+
+    def read_to_path(self, file_id: str, path: str | Path) -> None:
+        """Stream a stored file to a filesystem path."""
+        with Path(path).open("wb") as writer:
+            self.read_to_writer(file_id, writer)
+
+    def iter_chunks(self, file_id: str) -> Iterator[bytes]:
+        """Yield verified chunk payloads one at a time."""
+        for digest in self.file_digests(file_id):
+            yield self.read_chunk(digest)
+
+    def file_digests(self, file_id: str) -> list[str]:
+        """Ordered chunk digests for a stored file."""
+        return cast(list[str], self._handle.file_digests(file_id))
+
+    def read_chunk(self, digest: str) -> bytes:
+        """Fetch and verify a single chunk payload by digest."""
+        return cast(bytes, self._handle.read_chunk(digest))
 
     def delete(self, file_id: str) -> None:
         """Delete a file and GC unreferenced chunks. Alias: ``ChunkClient.delete_file``."""

@@ -4,6 +4,25 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+## [0.3.0] - 2026-06-25
+
+### Added
+
+- Rust core: `read_to_writer`, `file_digests`, `read_chunk` for streaming reads without assembling full files in memory
+- C-API: `chunkstore_read_to_writer` with `ChunkstoreWriteCallback`
+- Python: `read_to_writer`, `read_to_path`, `iter_chunks`; `ChunkClient.download_file_to`
+- Go: `Store.ReadTo(io.Writer)`
+- Python async: `AsyncChunkStore`, `AsyncChunkClient`, `AsyncS3Backend` (`aiobotocore`); async `iter_chunks`
+- `AsyncBackend` protocol, `AsyncBackendSyncAdapter`, and `_s3_deps` for optional S3 imports
+- FastAPI example uses async API with app lifespan
+
+### Changed
+
+- Python `[s3]` extra now includes `aiobotocore` (for `AsyncS3Backend`)
+- CI `python` / `python-s3` jobs install `.[dev]` / `.[s3,dev]` respectively
+
 ## [0.2.1] - 2026-06-24
 
 ### Fixed
@@ -47,6 +66,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 - Initial public release: Rust core, Python wrapper (PyPI), Go cgo wrapper, FS + S3 backends, cross-language format, FastAPI and go-http examples.
 
+[0.3.0]: https://github.com/MuratovER/chunkstore/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/MuratovER/chunkstore/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/MuratovER/chunkstore/compare/v0.1.1...v0.2.0
 [0.1.x]: https://github.com/MuratovER/chunkstore/releases/tag/v0.1.0

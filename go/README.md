@@ -10,8 +10,8 @@ cd go/chunkstore && go test -v
 ```
 
 ```bash
-# As a dependency (after tagging, e.g. v0.2.0)
-go get github.com/MuratovER/chunkstore/go@v0.2.0
+# As a dependency (after tagging, e.g. v0.3.0)
+go get github.com/MuratovER/chunkstore/go@v0.3.0
 ./scripts/build-core.sh   # required: cgo links target/release/libchunkstore.a
 ```
 
@@ -27,6 +27,9 @@ import "github.com/MuratovER/chunkstore/go/chunkstore"
 store, err := chunkstore.OpenFilesystem("/data/chunks")
 defer store.Close()
 digests, err := store.Ingest("doc", []byte("hello"))
+// Stream to an io.Writer without loading the full file:
+var buf bytes.Buffer
+err = store.ReadTo(&buf, "doc")
 ```
 
 **S3** (AWS or MinIO via aws-sdk-go-v2):

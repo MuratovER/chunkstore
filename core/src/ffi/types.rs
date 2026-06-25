@@ -37,6 +37,10 @@ pub struct ChunkstoreStats {
 /// Opaque store handle for FFI consumers.
 pub type ChunkStoreHandle = c_void;
 
+/// Callback invoked for each verified chunk during `chunkstore_read_to_writer`.
+pub type ChunkstoreWriteCallback =
+    unsafe extern "C" fn(data: *const u8, len: usize, userdata: *mut c_void) -> c_int;
+
 /// FFI success / error codes.
 pub const CHUNKSTORE_OK: c_int = 0;
 pub const CHUNKSTORE_ERR: c_int = -1;

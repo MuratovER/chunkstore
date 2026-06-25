@@ -1,11 +1,13 @@
 use std::ffi::CStr;
-use std::os::raw::{c_char, c_int};
+use std::io::Write;
+use std::os::raw::{c_char, c_int, c_void};
 use std::ptr;
 use std::sync::Arc;
 
 use crate::error::ChunkStoreError;
 use crate::ffi::types::{
-    ChunkBackendCallbacks, ChunkStoreHandle, ChunkstoreStats, CHUNKSTORE_ERR, CHUNKSTORE_OK,
+    ChunkBackendCallbacks, ChunkStoreHandle, ChunkstoreStats, ChunkstoreWriteCallback,
+    CHUNKSTORE_ERR, CHUNKSTORE_OK,
 };
 use crate::store::{ChunkBackend, ChunkStore, FsBackend};
 
@@ -148,6 +150,17 @@ impl FfiStore {
         match &self.inner {
             FfiStoreInner::Callback(store) => store.read(file_id),
             FfiStoreInner::Fs(store) => store.read(file_id),
+        }
+    }
+
+    fn read_to_writer<W: Write>(
+        &self,
+        file_id: &str,
+        writer: &mut W,
+    ) -> Result<(), ChunkStoreError> {
+        match &self.inner {
+            FfiStoreInner::Callback(store) => store.read_to_writer(file_id, writer),
+            FfiStoreInner::Fs(store) => store.read_to_writer(file_id, writer),
         }
     }
 
@@ -349,6 +362,61 @@ pub unsafe extern "C" fn chunkstore_read(
             *out_len = len;
             CHUNKSTORE_OK
         }
+        Err(e) => {
+            write_ffi_error(out_err, e.to_string());
+            CHUNKSTORE_ERR
+        }
+    }
+}
+
+struct FfiWriteTarget {
+    write_cb: ChunkstoreWriteCallback,
+    userdata: *mut c_void,
+}
+
+impl Write for FfiWriteTarget {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        if buf.is_empty() {
+            return Ok(0);
+        }
+        let rc = unsafe { (self.write_cb)(buf.as_ptr(), buf.len(), self.userdata) };
+        if rc == CHUNKSTORE_OK {
+            Ok(buf.len())
+        } else {
+            Err(std::io::Error::other("chunkstore write callback failed"))
+        }
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+/// Stream assembled file bytes to a caller-provided write callback.
+#[no_mangle]
+pub unsafe extern "C" fn chunkstore_read_to_writer(
+    store: *mut ChunkStoreHandle,
+    file_id: *const c_char,
+    write_cb: ChunkstoreWriteCallback,
+    userdata: *mut c_void,
+    out_err: *mut *mut c_char,
+) -> c_int {
+    if store.is_null() || file_id.is_null() || write_cb as usize == 0 {
+        return CHUNKSTORE_ERR;
+    }
+
+    let store = &mut *(store as *mut FfiStore);
+    let file_id = match CStr::from_ptr(file_id).to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            write_ffi_error(out_err, e.to_string());
+            return CHUNKSTORE_ERR;
+        }
+    };
+
+    let mut target = FfiWriteTarget { write_cb, userdata };
+    match store.read_to_writer(file_id, &mut target) {
+        Ok(()) => CHUNKSTORE_OK,
         Err(e) => {
             write_ffi_error(out_err, e.to_string());
             CHUNKSTORE_ERR

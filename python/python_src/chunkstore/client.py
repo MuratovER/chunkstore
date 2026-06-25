@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from typing import BinaryIO
+
 from chunkstore.store import ChunkStore
 
 
@@ -31,6 +33,9 @@ class ChunkClient:
 
     def download_file(self, file_id: str) -> bytes:
         return self.store.read(file_id)
+
+    def download_file_to(self, file_id: str, writer: BinaryIO) -> None:
+        self.store.read_to_writer(file_id, writer)
 
     def delete_file(self, file_id: str) -> None:
         self.store.delete(file_id)

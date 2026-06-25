@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "chunkstore"
-version = "0.2.1"
+version = "0.3.0"
 description = "Content-addressed chunk storage with deduplication"
 readme = "../README.md"
 requires-python = ">=3.10"
@@ -32,8 +32,8 @@ Documentation = "https://github.com/MuratovER/chunkstore#readme"
 Issues = "https://github.com/MuratovER/chunkstore/issues"
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "mypy>=1.8", "ruff>=0.4"]
-s3 = ["boto3>=1.34"]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.24", "mypy>=1.8", "ruff>=0.4"]
+s3 = ["boto3>=1.34", "aiobotocore>=2.13"]
 fastapi = ["fastapi>=0.110", "uvicorn>=0.27", "python-multipart>=0.0.9", "httpx>=0.27"]
 
 [tool.maturin]
@@ -43,6 +43,7 @@ python-source = "python_src"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+asyncio_mode = "auto"
 markers = ["cross_lang: requires Go toolchain and built libchunkstore", "s3: requires S3-compatible endpoint (MinIO)"]
 
 [tool.ruff]
@@ -55,9 +56,12 @@ strict = true
 [[tool.mypy.overrides]]
 module = [
     "chunkstore._native",
+    "chunkstore._s3_deps",
     "boto3",
     "boto3.*",
     "botocore",
     "botocore.*",
+    "aiobotocore",
+    "aiobotocore.*",
 ]
 ignore_missing_imports = true

@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional, cast
 
+from chunkstore._s3_deps import require_boto3
+
 
 class FilesystemBackend:
     """Filesystem chunk/metadata backend compatible with the Rust core layout."""
@@ -63,15 +65,9 @@ class S3Backend:
         read_timeout: int = 60,
         max_attempts: int = 3,
     ) -> None:
-        try:
-            import boto3
-            from botocore.config import Config
-            from botocore.exceptions import ClientError
-        except ImportError as exc:  # pragma: no cover
-            raise RuntimeError("S3Backend requires boto3; install chunkstore[s3]") from exc
-
-        self._client_error = ClientError
-        config = Config(
+        deps = require_boto3()
+        self._client_error = deps.ClientError
+        config = deps.Config(
             connect_timeout=connect_timeout,
             read_timeout=read_timeout,
             retries={"max_attempts": max_attempts, "mode": "adaptive"},
@@ -81,7 +77,7 @@ class S3Backend:
             kwargs["endpoint_url"] = endpoint_url
         if region_name is not None:
             kwargs["region_name"] = region_name
-        self._client = boto3.client("s3", **kwargs)
+        self._client = deps.boto3.client("s3", **kwargs)
         self.bucket = bucket
         self.prefix = prefix.strip("/")
 

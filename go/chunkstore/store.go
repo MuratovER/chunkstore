@@ -6,6 +6,8 @@ package chunkstore
 
 #include "chunkstore.h"
 #include <stdlib.h>
+
+int chunkstore_go_write_cb(uint8_t *data, size_t len, void *userdata);
 */
 import "C"
 
@@ -128,6 +130,23 @@ func (s *Store) Read(fileID string) ([]byte, error) {
 		return rc
 	})
 	return out, err
+}
+
+// ReadTo streams verified chunk payloads to w without assembling the full file in memory.
+func (s *Store) ReadTo(w io.Writer, fileID string) error {
+	id := registerWriter(w)
+	defer unregisterWriter(id)
+	return s.withErr(func(errOut **C.char) C.int {
+		cid := C.CString(fileID)
+		defer C.free(unsafe.Pointer(cid))
+		return C.chunkstore_read_to_writer(
+			s.handle,
+			cid,
+			(C.ChunkstoreWriteCallback)(C.chunkstore_go_write_cb),
+			unsafe.Pointer(uintptr(id)),
+			errOut,
+		)
+	})
 }
 
 // Delete removes a file and garbage-collects unreferenced chunks.

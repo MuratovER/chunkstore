@@ -28,6 +28,14 @@ func TestIngestReadDelete(t *testing.T) {
 		t.Fatalf("read mismatch: %q", got)
 	}
 
+	var streamed strings.Builder
+	if err := store.ReadTo(&streamed, "doc"); err != nil {
+		t.Fatalf("readto: %v", err)
+	}
+	if streamed.String() != string(payload) {
+		t.Fatalf("readto mismatch: %q", streamed.String())
+	}
+
 	stats, err := store.Stats()
 	if err != nil {
 		t.Fatalf("stats: %v", err)

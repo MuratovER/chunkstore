@@ -73,7 +73,7 @@ jobs:
         working-directory: python
         run: |
           python -m venv .venv
-          .venv/bin/pip install maturin pytest
+          .venv/bin/pip install maturin pytest ".[dev]"
           .venv/bin/maturin develop --release
           .venv/bin/pytest -q -m "not cross_lang and not s3"
 
@@ -118,7 +118,7 @@ jobs:
         working-directory: python
         run: |
           python -m venv .venv
-          .venv/bin/pip install maturin pytest "boto3>=1.34"
+          .venv/bin/pip install maturin pytest ".[s3,dev]"
           .venv/bin/maturin develop --release
           .venv/bin/pytest -m s3 -q
 

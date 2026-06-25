@@ -1,3 +1,4 @@
+use std::io::Write;
 use std::sync::Arc;
 
 use chunkstore::{ChunkStore, FsBackend, MemoryBackend, Stats};
@@ -77,6 +78,35 @@ fn extract_bytes(value: &Bound<'_, PyAny>) -> PyResult<Vec<u8>> {
 
 fn map_err(err: chunkstore::ChunkStoreError) -> PyErr {
     PyIOError::new_err(err.to_string())
+}
+
+struct PyWriter<'py> {
+    py: Python<'py>,
+    writer: Bound<'py, PyAny>,
+}
+
+impl Write for PyWriter<'_> {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        if buf.is_empty() {
+            return Ok(0);
+        }
+        let bytes = PyBytes::new(self.py, buf);
+        let written = self
+            .writer
+            .call_method1("write", (bytes,))?
+            .extract::<usize>()
+            .unwrap_or(buf.len());
+        Ok(written)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        if self.writer.hasattr("flush").unwrap_or(false) {
+            self.writer
+                .call_method0("flush")
+                .map_err(|e| std::io::Error::other(e.to_string()))?;
+        }
+        Ok(())
+    }
 }
 
 #[pyclass(name = "Stats", from_py_object)]
@@ -198,6 +228,43 @@ impl ChunkStoreHandle {
             StoreInner::Memory(store) => store.read(file_id).map_err(map_err),
             StoreInner::Python(store) => store.read(file_id).map_err(map_err),
             StoreInner::Fs(store) => store.read(file_id).map_err(map_err),
+        }
+    }
+
+    fn read_to_writer(
+        &self,
+        py: Python<'_>,
+        file_id: &str,
+        writer: Bound<'_, PyAny>,
+    ) -> PyResult<()> {
+        let mut target = PyWriter {
+            py,
+            writer: writer.clone(),
+        };
+        match &self.inner {
+            StoreInner::Memory(store) => {
+                store.read_to_writer(file_id, &mut target).map_err(map_err)
+            }
+            StoreInner::Python(store) => {
+                store.read_to_writer(file_id, &mut target).map_err(map_err)
+            }
+            StoreInner::Fs(store) => store.read_to_writer(file_id, &mut target).map_err(map_err),
+        }
+    }
+
+    fn file_digests(&self, file_id: &str) -> PyResult<Vec<String>> {
+        match &self.inner {
+            StoreInner::Memory(store) => store.file_digests(file_id).map_err(map_err),
+            StoreInner::Python(store) => store.file_digests(file_id).map_err(map_err),
+            StoreInner::Fs(store) => store.file_digests(file_id).map_err(map_err),
+        }
+    }
+
+    fn read_chunk(&self, digest: &str) -> PyResult<Vec<u8>> {
+        match &self.inner {
+            StoreInner::Memory(store) => store.read_chunk(digest).map_err(map_err),
+            StoreInner::Python(store) => store.read_chunk(digest).map_err(map_err),
+            StoreInner::Fs(store) => store.read_chunk(digest).map_err(map_err),
         }
     }
 

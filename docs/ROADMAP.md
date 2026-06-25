@@ -57,7 +57,7 @@ Polish packaging and make S3 + Go production-usable.
 | macOS + Windows wheels | ✅ | `pypi.yml`: Linux + macOS universal2 + Windows x64 (abi3) |
 | TestPyPI smoke in CI | Low | Optional manual `workflow_dispatch` before each release |
 | crates.io crate `chunkstore-core` | ✅ | `.github/workflows/crates-io.yml`; [docs/CRATES.md](CRATES.md) |
-| Go module tagging | ✅ | `go get github.com/MuratovER/chunkstore/go@v0.2.0` |
+| Go module tagging | ✅ | `go get github.com/MuratovER/chunkstore/go@v0.3.0` |
 
 ### Backends & examples
 
@@ -86,10 +86,10 @@ Large files and async Python services without loading full blobs in memory.
 
 | Task | Priority | Details |
 |------|----------|---------|
-| Streaming **read** | High | Iterator / writer callback; avoid `Vec<u8>` for whole file in FFI |
-| Streaming read in Python | High | `read_to_writer`, async generators |
-| Streaming read in Go | Medium | `io.Writer` target |
-| Async Python API | Medium | `asyncio` wrappers for ingest/read where backend is async (S3) |
+| Streaming **read** | High | ✅ `read_to_writer` in Rust; `chunkstore_read_to_writer` C-API |
+| Streaming read in Python | High | ✅ `read_to_writer`, `read_to_path`, `iter_chunks`, async `iter_chunks` |
+| Streaming read in Go | Medium | ✅ `ReadTo(io.Writer)` |
+| Async Python API | Medium | ✅ `AsyncChunkStore`, `AsyncChunkClient`, `AsyncS3Backend` |
 | Python quality in CI | ✅ | `python-quality` job: `ruff` + `mypy --strict` |
 | Performance pass | Medium | Profile lock scope; reduce copies on hot path |
 | Fuzz CDC + fixed chunkers | Low | `cargo fuzz` for boundary / panic safety |
@@ -149,7 +149,7 @@ flowchart LR
 
 1. ~~**Ship v0.1.0**~~ — PyPI `0.1.0`, public repo, CI, S3 backends.
 2. ~~**v0.2**~~ — crates.io workflow, Go module + API parity, S3 docs/hardening, CHANGELOG.
-3. **v0.3** — streaming read path end-to-end (Rust → FFI → Python/Go).
+3. **v0.3** — streaming read + async Python. ✅ Shipped; performance pass / async ingest streaming next.
 
 ---
 

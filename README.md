@@ -98,6 +98,34 @@ store.ingest("doc_v1", b"hello world")
 
 Cross-language smoke test: `pytest -m cross_lang` (Python write → Go read/delete → Python stats).
 
+**Streaming read** (v0.3 — no full-file buffer in memory):
+
+```python
+with open("out.bin", "wb") as f:
+    store.read_to_writer("doc_v1", f)
+
+for chunk in store.iter_chunks("doc_v1"):
+    process(chunk)
+```
+
+```go
+var buf bytes.Buffer
+store.ReadTo(&buf, "doc_v1")
+```
+
+**Async Python** (FastAPI / asyncio — Rust work off the event loop):
+
+```python
+from chunkstore import AsyncChunkStore, AsyncChunkClient, FilesystemBackend
+
+async with await AsyncChunkStore.open(FilesystemBackend("/data/chunks")) as store:
+    client = AsyncChunkClient(store)
+    await client.upload_file("doc_v1", b"hello world")
+    data = await client.download_file("doc_v1")
+```
+
+Async S3: `AsyncS3Backend` + `pip install "chunkstore[s3]"` (includes `aiobotocore`). See [python/README.md](python/README.md).
+
 ---
 
 ## Design principles
@@ -316,11 +344,12 @@ file → chunks → SHA-256 (64-char hex) → backend
 
 ## Multi-language
 
-| Language | Open | Upload | Read | Delete |
-|----------|------|--------|------|--------|
-| Rust | `ChunkStore::open(FsBackend::new(path)?)` | `ingest` | `read` | `delete` |
-| Python | `ChunkStore.open(FilesystemBackend(path))` | `ingest` | `read` | `delete` |
-| Go | `chunkstore.OpenFilesystem(path)` | `Ingest` | `Read` | `Delete` |
+| Language | Open | Upload | Read | Delete | Stream read |
+|----------|------|--------|------|--------|-------------|
+| Rust | `ChunkStore::open(FsBackend::new(path)?)` | `ingest` | `read` | `delete` | `read_to_writer` |
+| Python | `ChunkStore.open(FilesystemBackend(path))` | `ingest` | `read` | `delete` | `read_to_writer`, `iter_chunks` |
+| Python async | `AsyncChunkStore.open(backend)` | `await ingest` | `await read` | `await delete` | `await read_to_writer`, async `iter_chunks` |
+| Go | `chunkstore.OpenFilesystem(path)` | `Ingest` | `Read` | `Delete` | `ReadTo(io.Writer)` |
 
 CI verifies: **Python write → Go read/delete → Python stats** (`pytest -m cross_lang`).
 
@@ -333,8 +362,8 @@ CI verifies: **Python write → Go read/delete → Python stats** (`pytest -m cr
 | **Python** | Python 3.10+ | `pip install chunkstore` — Linux, macOS, Windows wheels ([PyPI](https://pypi.org/project/chunkstore/)) |
 | **Python (dev)** | Rust (maturin) | `cd python && maturin develop --release` |
 | **Rust** | Rust 1.70+ | `cargo build --release -p chunkstore-core` |
-| **Go** | Go 1.24+, built `libchunkstore.a` | `go get github.com/MuratovER/chunkstore/go@v0.2.0` — see [`go/README.md`](go/README.md) |
-| **Extras** | — | `pip install "chunkstore[s3,fastapi,dev]"` |
+| **Go** | Go 1.24+, built `libchunkstore.a` | `go get github.com/MuratovER/chunkstore/go@v0.3.0` — see [`go/README.md`](go/README.md) |
+| **Extras** | — | `pip install "chunkstore[s3,fastapi,dev]"` (`[s3]` = boto3 + aiobotocore) |
 
 Docs: [S3 backend](docs/S3.md) · [Chunking guide](docs/CHUNKING.md) · [Rust crate](docs/CRATES.md)
 

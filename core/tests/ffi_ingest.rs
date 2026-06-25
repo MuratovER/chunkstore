@@ -6,8 +6,8 @@ use std::ptr;
 
 use chunkstore::ffi::{
     chunkstore_destroy, chunkstore_ingest_cdc_with_digests, chunkstore_ingest_fixed,
-    chunkstore_ingest_with_digests, chunkstore_open_fs, chunkstore_read, chunkstore_string_free,
-    CHUNKSTORE_OK,
+    chunkstore_ingest_with_digests, chunkstore_open_fs, chunkstore_read, chunkstore_read_to_writer,
+    chunkstore_string_free, ChunkstoreWriteCallback, CHUNKSTORE_OK,
 };
 use tempfile::tempdir;
 
@@ -121,6 +121,83 @@ fn ffi_ingest_fixed_custom_chunk_size() {
         let digests: Vec<String> = serde_json::from_str(json).expect("parse digests json");
         assert_eq!(digests.len(), 3);
         free_digests_json(digests_json);
+
+        chunkstore_destroy(store);
+    }
+}
+
+struct WriteCollector {
+    bytes: Vec<u8>,
+}
+
+unsafe extern "C" fn collect_write_cb(
+    data: *const u8,
+    len: usize,
+    userdata: *mut std::ffi::c_void,
+) -> i32 {
+    if userdata.is_null() {
+        return -1;
+    }
+    let collector = &mut *(userdata as *mut WriteCollector);
+    if data.is_null() || len == 0 {
+        return CHUNKSTORE_OK;
+    }
+    collector
+        .bytes
+        .extend_from_slice(std::slice::from_raw_parts(data, len));
+    CHUNKSTORE_OK
+}
+
+#[test]
+fn ffi_read_to_writer_streams_chunks() {
+    let dir = tempdir().expect("tempdir");
+    let root = CString::new(dir.path().to_str().unwrap()).unwrap();
+    let chunk_size = 64usize;
+    let payload = vec![0xABu8; chunk_size * 2 + 10];
+
+    unsafe {
+        let store = chunkstore_open_fs(root.as_ptr());
+        assert!(!store.is_null());
+
+        let file_id = CString::new("parts").unwrap();
+        let mut digests_json: *mut c_char = ptr::null_mut();
+        let mut err: *mut c_char = ptr::null_mut();
+
+        let rc = chunkstore_ingest_fixed(
+            store,
+            file_id.as_ptr(),
+            payload.as_ptr(),
+            payload.len(),
+            chunk_size,
+            &mut digests_json,
+            &mut err,
+        );
+        assert_eq!(
+            rc,
+            CHUNKSTORE_OK,
+            "err={}",
+            CStr::from_ptr(err).to_str().unwrap_or("")
+        );
+        free_err(err);
+        free_digests_json(digests_json);
+
+        let mut collector = WriteCollector { bytes: Vec::new() };
+        err = ptr::null_mut();
+        let rc = chunkstore_read_to_writer(
+            store,
+            file_id.as_ptr(),
+            collect_write_cb as ChunkstoreWriteCallback,
+            &mut collector as *mut WriteCollector as *mut std::ffi::c_void,
+            &mut err,
+        );
+        assert_eq!(
+            rc,
+            CHUNKSTORE_OK,
+            "err={}",
+            CStr::from_ptr(err).to_str().unwrap_or("")
+        );
+        free_err(err);
+        assert_eq!(collector.bytes, payload);
 
         chunkstore_destroy(store);
     }

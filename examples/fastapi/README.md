@@ -1,10 +1,12 @@
 # FastAPI example
 
+Uses the **async** API (`AsyncChunkStore` / `AsyncChunkClient`) so Rust chunking runs off the event loop.
+
 ```bash
 cd python
 maturin develop --release
-pip install ".[fastapi]"
-uvicorn examples.fastapi.main:app --reload
+pip install ".[fastapi,dev]"
+PYTHONPATH=../examples/fastapi uvicorn main:app --reload
 ```
 
 Endpoints:
