@@ -23,7 +23,7 @@ jobs:
       publish: ${{ steps.out.outputs.publish }}
       ref: ${{ steps.out.outputs.ref }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
@@ -59,7 +59,7 @@ jobs:
     if: needs.gate.outputs.publish == 'true'
     environment: crates-io
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.gate.outputs.ref }}
 

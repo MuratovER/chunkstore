@@ -33,7 +33,7 @@ jobs:
       publish: ${{ steps.out.outputs.publish }}
       ref: ${{ steps.out.outputs.ref }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
@@ -68,7 +68,7 @@ jobs:
     needs: gate
     if: needs.gate.outputs.publish == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.gate.outputs.ref }}
 
@@ -92,7 +92,7 @@ jobs:
       matrix:
         target: [x86_64, aarch64]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.gate.outputs.ref }}
 
@@ -115,7 +115,7 @@ jobs:
     if: needs.gate.outputs.publish == 'true'
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.gate.outputs.ref }}
 
@@ -136,7 +136,7 @@ jobs:
     if: needs.gate.outputs.publish == 'true'
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.gate.outputs.ref }}
 
