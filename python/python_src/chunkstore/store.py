@@ -2,9 +2,13 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from pathlib import Path
-from typing import BinaryIO, cast
+from typing import BinaryIO, Protocol, cast
 
 from chunkstore._native import ChunkStoreHandle, Stats
+
+
+class SupportsRead(Protocol):
+    def read(self, n: int = -1) -> bytes: ...
 
 
 class ChunkStore:
@@ -24,8 +28,8 @@ class ChunkStore:
   | ``delete``                  | ``delete_file``           |
   +---------------------------+---------------------------+
 
-  ``ingest_reader`` and ``ingest_file_path`` load the full input into memory
-  before chunking (streaming ingest is planned for v0.3).
+  ``ingest_reader`` and ``ingest_file_path`` stream from the
+  source — they do not load the whole file into Python memory.
   """
 
     def __init__(self, handle: ChunkStoreHandle) -> None:
@@ -52,9 +56,12 @@ class ChunkStore:
         return cast(list[str], self._handle.ingest_fixed(file_id, data, chunk_size))
 
     def ingest_file_path(self, file_id: str, path: str | Path) -> list[str]:
-        """Read a file from disk and ingest (loads entire file into memory)."""
-        data = Path(path).read_bytes()
-        return self.ingest(file_id, data)
+        """Stream a file from disk and ingest with default fixed chunking."""
+        return cast(list[str], self._handle.ingest_path(file_id, str(path)))
+
+    def ingest_file_path_cdc(self, file_id: str, path: str | Path) -> list[str]:
+        """Stream a file from disk and ingest with CDC chunking."""
+        return cast(list[str], self._handle.ingest_path_cdc(file_id, str(path)))
 
     def read(self, file_id: str) -> bytes:
         """Reconstruct file bytes. Alias: ``ChunkClient.download_file``."""
@@ -89,7 +96,12 @@ class ChunkStore:
     def stats(self) -> Stats:
         return self._handle.stats()
 
-    def ingest_reader(self, file_id: str, reader: BinaryIO, chunk_size: int = 4 * 1024 * 1024) -> list[str]:
-        """Read all bytes from ``reader`` and ingest with fixed chunking (not streaming)."""
-        data = reader.read()
-        return self.ingest_fixed(file_id, data, chunk_size)
+    def ingest_reader(
+        self, file_id: str, reader: SupportsRead, chunk_size: int = 4 * 1024 * 1024
+    ) -> list[str]:
+        """Stream bytes from ``reader`` and ingest with fixed chunking."""
+        return cast(list[str], self._handle.ingest_reader(file_id, reader, chunk_size))
+
+    def ingest_reader_cdc(self, file_id: str, reader: SupportsRead) -> list[str]:
+        """Stream bytes from ``reader`` and ingest with CDC chunking."""
+        return cast(list[str], self._handle.ingest_reader_cdc(file_id, reader))

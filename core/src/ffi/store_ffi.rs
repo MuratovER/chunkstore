@@ -6,8 +6,8 @@ use std::sync::Arc;
 
 use crate::error::ChunkStoreError;
 use crate::ffi::types::{
-    ChunkBackendCallbacks, ChunkStoreHandle, ChunkstoreStats, ChunkstoreWriteCallback,
-    CHUNKSTORE_ERR, CHUNKSTORE_OK,
+    ChunkBackendCallbacks, ChunkStoreHandle, ChunkstoreReadCallback, ChunkstoreStats,
+    ChunkstoreWriteCallback, CHUNKSTORE_ERR, CHUNKSTORE_OK,
 };
 use crate::store::{ChunkBackend, ChunkStore, FsBackend};
 
@@ -143,6 +143,45 @@ impl FfiStore {
         match &self.inner {
             FfiStoreInner::Callback(store) => store.ingest_fixed(file_id, data, chunk_size),
             FfiStoreInner::Fs(store) => store.ingest_fixed(file_id, data, chunk_size),
+        }
+    }
+
+    fn ingest_reader_fixed<R: std::io::Read>(
+        &self,
+        file_id: &str,
+        reader: &mut R,
+        chunk_size: usize,
+    ) -> Result<Vec<String>, ChunkStoreError> {
+        match &self.inner {
+            FfiStoreInner::Callback(store) => {
+                store.ingest_reader_fixed(file_id, reader, chunk_size)
+            }
+            FfiStoreInner::Fs(store) => store.ingest_reader_fixed(file_id, reader, chunk_size),
+        }
+    }
+
+    fn ingest_reader_cdc<R: std::io::Read>(
+        &self,
+        file_id: &str,
+        reader: &mut R,
+    ) -> Result<Vec<String>, ChunkStoreError> {
+        match &self.inner {
+            FfiStoreInner::Callback(store) => store.ingest_reader_cdc(file_id, reader),
+            FfiStoreInner::Fs(store) => store.ingest_reader_cdc(file_id, reader),
+        }
+    }
+
+    fn ingest_path(&self, file_id: &str, path: &str) -> Result<Vec<String>, ChunkStoreError> {
+        match &self.inner {
+            FfiStoreInner::Callback(store) => store.ingest_path(file_id, path),
+            FfiStoreInner::Fs(store) => store.ingest_path(file_id, path),
+        }
+    }
+
+    fn ingest_path_cdc(&self, file_id: &str, path: &str) -> Result<Vec<String>, ChunkStoreError> {
+        match &self.inner {
+            FfiStoreInner::Callback(store) => store.ingest_path_cdc(file_id, path),
+            FfiStoreInner::Fs(store) => store.ingest_path_cdc(file_id, path),
         }
     }
 
@@ -331,6 +370,141 @@ pub unsafe extern "C" fn chunkstore_ingest_cdc_with_digests(
     )
 }
 
+struct FfiReadSource {
+    read_cb: ChunkstoreReadCallback,
+    userdata: *mut c_void,
+}
+
+impl std::io::Read for FfiReadSource {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        if buf.is_empty() {
+            return Ok(0);
+        }
+        let mut out_len = 0usize;
+        let rc =
+            unsafe { (self.read_cb)(buf.as_mut_ptr(), buf.len(), &mut out_len, self.userdata) };
+        if rc != CHUNKSTORE_OK {
+            return Err(std::io::Error::other("chunkstore read callback failed"));
+        }
+        if out_len > buf.len() {
+            return Err(std::io::Error::other("chunkstore read callback overflow"));
+        }
+        Ok(out_len)
+    }
+}
+
+/// Stream ingest from a caller-provided read callback.
+///
+/// `chunk_size` of 0 uses the default fixed size (4 MiB). `use_cdc` non-zero
+/// selects CDC (then `chunk_size` is ignored).
+#[no_mangle]
+pub unsafe extern "C" fn chunkstore_ingest_reader(
+    store: *mut ChunkStoreHandle,
+    file_id: *const c_char,
+    read_cb: ChunkstoreReadCallback,
+    userdata: *mut c_void,
+    chunk_size: usize,
+    use_cdc: c_int,
+    out_digests_json: *mut *mut c_char,
+    out_err: *mut *mut c_char,
+) -> c_int {
+    if store.is_null() || file_id.is_null() || out_digests_json.is_null() || read_cb as usize == 0 {
+        return CHUNKSTORE_ERR;
+    }
+
+    let store = &mut *(store as *mut FfiStore);
+    let file_id = match CStr::from_ptr(file_id).to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            write_ffi_error(out_err, e.to_string());
+            return CHUNKSTORE_ERR;
+        }
+    };
+
+    let mut reader = FfiReadSource { read_cb, userdata };
+    let result = if use_cdc != 0 {
+        store.ingest_reader_cdc(file_id, &mut reader)
+    } else {
+        let size = if chunk_size == 0 {
+            crate::chunker::FixedChunker::default_chunk_size()
+        } else {
+            chunk_size
+        };
+        store.ingest_reader_fixed(file_id, &mut reader, size)
+    };
+
+    match result {
+        Ok(digests) => match digests_to_json_cstring(&digests) {
+            Ok(json) => {
+                *out_digests_json = json.into_raw();
+                CHUNKSTORE_OK
+            }
+            Err(e) => {
+                write_ffi_error(out_err, e.to_string());
+                CHUNKSTORE_ERR
+            }
+        },
+        Err(e) => {
+            write_ffi_error(out_err, e.to_string());
+            CHUNKSTORE_ERR
+        }
+    }
+}
+
+/// Stream ingest from a filesystem path (does not load the whole file).
+#[no_mangle]
+pub unsafe extern "C" fn chunkstore_ingest_path(
+    store: *mut ChunkStoreHandle,
+    file_id: *const c_char,
+    path: *const c_char,
+    use_cdc: c_int,
+    out_digests_json: *mut *mut c_char,
+    out_err: *mut *mut c_char,
+) -> c_int {
+    if store.is_null() || file_id.is_null() || path.is_null() || out_digests_json.is_null() {
+        return CHUNKSTORE_ERR;
+    }
+
+    let store = &mut *(store as *mut FfiStore);
+    let file_id = match CStr::from_ptr(file_id).to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            write_ffi_error(out_err, e.to_string());
+            return CHUNKSTORE_ERR;
+        }
+    };
+    let path = match CStr::from_ptr(path).to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            write_ffi_error(out_err, e.to_string());
+            return CHUNKSTORE_ERR;
+        }
+    };
+
+    let result = if use_cdc != 0 {
+        store.ingest_path_cdc(file_id, path)
+    } else {
+        store.ingest_path(file_id, path)
+    };
+
+    match result {
+        Ok(digests) => match digests_to_json_cstring(&digests) {
+            Ok(json) => {
+                *out_digests_json = json.into_raw();
+                CHUNKSTORE_OK
+            }
+            Err(e) => {
+                write_ffi_error(out_err, e.to_string());
+                CHUNKSTORE_ERR
+            }
+        },
+        Err(e) => {
+            write_ffi_error(out_err, e.to_string());
+            CHUNKSTORE_ERR
+        }
+    }
+}
+
 /// Read assembled file bytes. Caller must free with `chunkstore_bytes_free`.
 #[no_mangle]
 pub unsafe extern "C" fn chunkstore_read(
@@ -470,6 +644,7 @@ pub unsafe extern "C" fn chunkstore_stats(
             (*out_stats).total_bytes = stats.total_bytes;
             (*out_stats).stored_bytes = stats.stored_bytes;
             (*out_stats).savings_pct = stats.savings_pct();
+            (*out_stats).gc_chunks = stats.gc_chunks;
             CHUNKSTORE_OK
         }
         Err(e) => {

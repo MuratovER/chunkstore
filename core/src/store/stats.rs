@@ -5,6 +5,9 @@ use serde::{Deserialize, Serialize};
 pub struct Stats {
     pub total_bytes: u64,
     pub stored_bytes: u64,
+    /// Chunk blobs unlinked by GC in this process (not persisted).
+    #[serde(default)]
+    pub gc_chunks: u64,
 }
 
 impl Stats {
@@ -23,6 +26,7 @@ impl Stats {
 
     pub fn remove_unique_chunk(&mut self, size: u64) {
         self.stored_bytes = self.stored_bytes.saturating_sub(size);
+        self.gc_chunks = self.gc_chunks.saturating_add(1);
     }
 
     pub fn savings_pct(&self) -> f64 {

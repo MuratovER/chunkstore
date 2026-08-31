@@ -27,6 +27,8 @@ import "github.com/MuratovER/chunkstore/go/chunkstore"
 store, err := chunkstore.OpenFilesystem("/data/chunks")
 defer store.Close()
 digests, err := store.Ingest("doc", []byte("hello"))
+// Stream ingest from a path without loading the whole file:
+digests, err = store.IngestFile("doc2", "/tmp/large.bin")
 // Stream to an io.Writer without loading the full file:
 var buf bytes.Buffer
 err = store.ReadTo(&buf, "doc")

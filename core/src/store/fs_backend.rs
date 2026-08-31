@@ -127,6 +127,39 @@ impl ChunkBackend for FsBackend {
         }
         Ok(())
     }
+
+    fn list_keys(&self, prefix: &str) -> Result<Option<Vec<String>>, ChunkStoreError> {
+        let mut keys = Vec::new();
+        collect_keys(&self.root, &self.root, prefix, &mut keys)?;
+        Ok(Some(keys))
+    }
+}
+
+fn collect_keys(
+    dir: &Path,
+    root: &Path,
+    prefix: &str,
+    out: &mut Vec<String>,
+) -> Result<(), ChunkStoreError> {
+    if !dir.is_dir() {
+        return Ok(());
+    }
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_dir() {
+            collect_keys(&path, root, prefix, out)?;
+            continue;
+        }
+        let rel = path
+            .strip_prefix(root)
+            .map_err(|_| ChunkStoreError::backend("key outside backend root"))?;
+        let key = rel.to_string_lossy().replace('\\', "/");
+        if key.starts_with(prefix) {
+            out.push(key);
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

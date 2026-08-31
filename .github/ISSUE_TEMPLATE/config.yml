@@ -1,0 +1,7 @@
+contact_links:
+  - name: Security report
+    url: https://github.com/MuratovER/chunkstore/blob/main/SECURITY.md
+    about: Please do not file public issues for vulnerabilities.
+  - name: Questions
+    url: https://github.com/MuratovER/chunkstore/discussions
+    about: Usage questions and design discussion.

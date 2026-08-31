@@ -49,6 +49,31 @@ func TestIngestReadDelete(t *testing.T) {
 	}
 }
 
+func TestIngestFileStreamsFromDisk(t *testing.T) {
+	dir := t.TempDir()
+	store, err := OpenFilesystem(filepath.Join(dir, "chunks"))
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	t.Cleanup(store.Close)
+
+	payload := []byte("path-ingest-payload")
+	src := filepath.Join(dir, "src.bin")
+	if err := os.WriteFile(src, payload, 0o644); err != nil {
+		t.Fatalf("write src: %v", err)
+	}
+	if _, err := store.IngestFile("from-disk", src); err != nil {
+		t.Fatalf("ingest file: %v", err)
+	}
+	got, err := store.Read("from-disk")
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if string(got) != string(payload) {
+		t.Fatalf("mismatch: %q", got)
+	}
+}
+
 func TestDuplicateDedup(t *testing.T) {
 	dir := t.TempDir()
 	store, err := OpenFilesystem(filepath.Join(dir, "chunks"))

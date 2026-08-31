@@ -31,6 +31,9 @@ class ChunkClient:
     def upload_file_path(self, file_id: str, path: str | Path) -> list[str]:
         return self.store.ingest_file_path(file_id, path)
 
+    def upload_file_path_cdc(self, file_id: str, path: str | Path) -> list[str]:
+        return self.store.ingest_file_path_cdc(file_id, path)
+
     def download_file(self, file_id: str) -> bytes:
         return self.store.read(file_id)
 

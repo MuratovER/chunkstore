@@ -23,6 +23,21 @@ struct ManifestRecord {
     file_bytes: u64,
 }
 
+/// On-disk refcount. Legacy records were a bare `u64` count.
+#[derive(Debug, Serialize, Deserialize)]
+struct RefCountRecord {
+    count: u64,
+    #[serde(default)]
+    size: u64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum RefCountWire {
+    Legacy(u64),
+    Record(RefCountRecord),
+}
+
 pub(crate) fn manifest_key(file_id: &str) -> String {
     format!("{MANIFEST_PREFIX}{file_id}")
 }
@@ -62,15 +77,23 @@ pub(crate) fn load_refcounts<B: ChunkBackend>(backend: &B) -> Result<RefCount, C
         let raw = backend
             .get(&key)?
             .ok_or_else(|| ChunkStoreError::backend(format!("missing refcount key {key}")))?;
-        let count: u64 = serde_json::from_slice(&raw).map_err(|e| {
-            ChunkStoreError::backend(format!("invalid refcount JSON for {digest}: {e}"))
-        })?;
+        let (count, size) = parse_refcount_record(&raw, &digest)?;
         if count > 0 {
-            refcount.set(&digest, count);
+            refcount.set(&digest, count, size);
         }
     }
 
     Ok(refcount)
+}
+
+fn parse_refcount_record(raw: &[u8], digest: &str) -> Result<(u64, u64), ChunkStoreError> {
+    let wire: RefCountWire = serde_json::from_slice(raw).map_err(|e| {
+        ChunkStoreError::backend(format!("invalid refcount JSON for {digest}: {e}"))
+    })?;
+    Ok(match wire {
+        RefCountWire::Legacy(count) => (count, 0),
+        RefCountWire::Record(record) => (record.count, record.size),
+    })
 }
 
 pub(crate) fn save_manifest<B: ChunkBackend>(
@@ -113,9 +136,11 @@ pub(crate) fn save_refcount<B: ChunkBackend>(
     backend: &B,
     digest: &str,
     count: u64,
+    size: u64,
 ) -> Result<(), ChunkStoreError> {
     validate_digest(digest)?;
-    let payload = serde_json::to_vec(&count)
+    let record = RefCountRecord { count, size };
+    let payload = serde_json::to_vec(&record)
         .map_err(|e| ChunkStoreError::backend(format!("refcount encode failed: {e}")))?;
     backend.put(&refcount_key(digest), &payload)?;
 
@@ -157,4 +182,33 @@ fn write_string_list<B: ChunkBackend>(
     let payload = serde_json::to_vec(values)
         .map_err(|e| ChunkStoreError::backend(format!("index encode failed: {e}")))?;
     backend.put(key, &payload)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::store::MemoryBackend;
+
+    #[test]
+    fn refcount_legacy_u64_still_loads() {
+        let backend = MemoryBackend::new();
+        let digest = "ab".repeat(32);
+        backend.put(&refcount_key(&digest), b"3").unwrap();
+        backend
+            .put(REFCOUNT_INDEX_KEY, format!("[\"{digest}\"]").as_bytes())
+            .unwrap();
+        let loaded = load_refcounts(&backend).unwrap();
+        assert_eq!(loaded.get(&digest), Some(3));
+        assert_eq!(loaded.size_of(&digest), Some(0));
+    }
+
+    #[test]
+    fn refcount_record_roundtrip() {
+        let backend = MemoryBackend::new();
+        let digest = "cd".repeat(32);
+        save_refcount(&backend, &digest, 2, 4096).unwrap();
+        let loaded = load_refcounts(&backend).unwrap();
+        assert_eq!(loaded.get(&digest), Some(2));
+        assert_eq!(loaded.size_of(&digest), Some(4096));
+    }
 }

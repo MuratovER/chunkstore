@@ -17,23 +17,44 @@ pub trait Chunker {
     fn finish(&mut self) -> Result<Vec<Vec<u8>>, ChunkStoreError>;
 }
 
-/// Chunk all bytes from `reader` using the given chunker.
-pub fn chunk_reader<R: Read>(
+/// Stream chunks from `reader` into `on_chunk` without retaining all payloads.
+pub fn for_each_chunk<R, F>(
     reader: &mut R,
     chunker: &mut dyn Chunker,
-) -> Result<Vec<Vec<u8>>, ChunkStoreError> {
+    mut on_chunk: F,
+) -> Result<(), ChunkStoreError>
+where
+    R: Read,
+    F: FnMut(Vec<u8>) -> Result<(), ChunkStoreError>,
+{
     let mut buf = [0u8; 64 * 1024];
-    let mut chunks = Vec::new();
 
     loop {
         let n = reader.read(&mut buf)?;
         if n == 0 {
             break;
         }
-        chunks.extend(chunker.feed(&buf[..n])?);
+        for chunk in chunker.feed(&buf[..n])? {
+            on_chunk(chunk)?;
+        }
     }
 
-    chunks.extend(chunker.finish()?);
+    for chunk in chunker.finish()? {
+        on_chunk(chunk)?;
+    }
+    Ok(())
+}
+
+/// Chunk all bytes from `reader` using the given chunker.
+pub fn chunk_reader<R: Read>(
+    reader: &mut R,
+    chunker: &mut dyn Chunker,
+) -> Result<Vec<Vec<u8>>, ChunkStoreError> {
+    let mut chunks = Vec::new();
+    for_each_chunk(reader, chunker, |chunk| {
+        chunks.push(chunk);
+        Ok(())
+    })?;
     Ok(chunks)
 }
 

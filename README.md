@@ -32,6 +32,8 @@
 - [Benchmarks](#benchmarks)
 - [Contributing](#contributing)
 - [Roadmap](docs/ROADMAP.md)
+- [Consistency](docs/CONSISTENCY.md)
+- [Security](SECURITY.md)
 - [License](#license)
 
 ---
@@ -449,7 +451,7 @@ Want to fix a bug, add a feature, or improve bindings? See **[CONTRIBUTING.md](C
 
 **PyPI releases:** [docs/PYPI.md](docs/PYPI.md)
 
-**Roadmap:** [docs/ROADMAP.md](docs/ROADMAP.md)
+**Roadmap:** [docs/ROADMAP.md](docs/ROADMAP.md) · **Consistency:** [docs/CONSISTENCY.md](docs/CONSISTENCY.md) · **Security:** [SECURITY.md](SECURITY.md)
 
 ---
 

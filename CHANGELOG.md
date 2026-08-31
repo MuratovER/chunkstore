@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+
+- Streaming ingest: `ingest_path` / `ingest_reader` in Rust, C-API, Python, and Go (no full-file buffer)
+- Python `AsyncChunkStore.ingest_aiter` for async byte iterators
+- Postgres metadata backend (`chunkstore-core` feature `postgres`, `ChunkStore::open_postgres`)
+- `ChunkCodec` encryption-at-rest hook (`open_with_codec`)
+- `ChunkStore::fsck` for missing/orphan blob scan and optional repair
+- `Stats.gc_chunks`; refcount records persist `{count, size}` (legacy bare `u64` still loads)
+- cargo-fuzz targets for fixed and CDC chunkers (`core/fuzz`)
+- [docs/CONSISTENCY.md](docs/CONSISTENCY.md), `SECURITY.md`, issue/PR templates, Dependabot
+
+### Changed
+
+- Ingest commits new chunks before releasing the previous file's refcounts
+- GC uses stored chunk sizes instead of fetching blob payloads
+
 ## [0.3.0] - 2026-06-25
 
 ### Added

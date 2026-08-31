@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{Read, Write};
 use std::sync::Arc;
 
 use chunkstore::{ChunkStore, FsBackend, MemoryBackend, Stats};
@@ -80,6 +80,26 @@ fn map_err(err: chunkstore::ChunkStoreError) -> PyErr {
     PyIOError::new_err(err.to_string())
 }
 
+struct PyReader<'py> {
+    reader: Bound<'py, PyAny>,
+}
+
+impl Read for PyReader<'_> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        if buf.is_empty() {
+            return Ok(0);
+        }
+        let obj = self
+            .reader
+            .call_method1("read", (buf.len(),))
+            .map_err(|e| std::io::Error::other(e.to_string()))?;
+        let bytes = extract_bytes(&obj).map_err(|e| std::io::Error::other(e.to_string()))?;
+        let n = bytes.len().min(buf.len());
+        buf[..n].copy_from_slice(&bytes[..n]);
+        Ok(n)
+    }
+}
+
 struct PyWriter<'py> {
     py: Python<'py>,
     writer: Bound<'py, PyAny>,
@@ -115,6 +135,7 @@ struct PyStats {
     total_bytes: u64,
     stored_bytes: u64,
     savings_pct: f64,
+    gc_chunks: u64,
 }
 
 #[pymethods]
@@ -134,10 +155,15 @@ impl PyStats {
         self.savings_pct
     }
 
+    #[getter]
+    fn gc_chunks(&self) -> u64 {
+        self.gc_chunks
+    }
+
     fn __repr__(&self) -> String {
         format!(
-            "Stats(total_bytes={}, stored_bytes={}, savings_pct={:.2})",
-            self.total_bytes, self.stored_bytes, self.savings_pct
+            "Stats(total_bytes={}, stored_bytes={}, savings_pct={:.2}, gc_chunks={})",
+            self.total_bytes, self.stored_bytes, self.savings_pct, self.gc_chunks
         )
     }
 }
@@ -148,6 +174,7 @@ impl From<Stats> for PyStats {
             total_bytes: value.total_bytes,
             stored_bytes: value.stored_bytes,
             savings_pct: value.savings_pct(),
+            gc_chunks: value.gc_chunks,
         }
     }
 }
@@ -220,6 +247,57 @@ impl ChunkStoreHandle {
             StoreInner::Fs(store) => store
                 .ingest_fixed(file_id, data, chunk_size)
                 .map_err(map_err),
+        }
+    }
+
+    fn ingest_reader(
+        &self,
+        file_id: &str,
+        reader: Bound<'_, PyAny>,
+        chunk_size: usize,
+    ) -> PyResult<Vec<String>> {
+        let mut source = PyReader { reader };
+        match &self.inner {
+            StoreInner::Memory(store) => store
+                .ingest_reader_fixed(file_id, &mut source, chunk_size)
+                .map_err(map_err),
+            StoreInner::Python(store) => store
+                .ingest_reader_fixed(file_id, &mut source, chunk_size)
+                .map_err(map_err),
+            StoreInner::Fs(store) => store
+                .ingest_reader_fixed(file_id, &mut source, chunk_size)
+                .map_err(map_err),
+        }
+    }
+
+    fn ingest_reader_cdc(&self, file_id: &str, reader: Bound<'_, PyAny>) -> PyResult<Vec<String>> {
+        let mut source = PyReader { reader };
+        match &self.inner {
+            StoreInner::Memory(store) => store
+                .ingest_reader_cdc(file_id, &mut source)
+                .map_err(map_err),
+            StoreInner::Python(store) => store
+                .ingest_reader_cdc(file_id, &mut source)
+                .map_err(map_err),
+            StoreInner::Fs(store) => store
+                .ingest_reader_cdc(file_id, &mut source)
+                .map_err(map_err),
+        }
+    }
+
+    fn ingest_path(&self, file_id: &str, path: &str) -> PyResult<Vec<String>> {
+        match &self.inner {
+            StoreInner::Memory(store) => store.ingest_path(file_id, path).map_err(map_err),
+            StoreInner::Python(store) => store.ingest_path(file_id, path).map_err(map_err),
+            StoreInner::Fs(store) => store.ingest_path(file_id, path).map_err(map_err),
+        }
+    }
+
+    fn ingest_path_cdc(&self, file_id: &str, path: &str) -> PyResult<Vec<String>> {
+        match &self.inner {
+            StoreInner::Memory(store) => store.ingest_path_cdc(file_id, path).map_err(map_err),
+            StoreInner::Python(store) => store.ingest_path_cdc(file_id, path).map_err(map_err),
+            StoreInner::Fs(store) => store.ingest_path_cdc(file_id, path).map_err(map_err),
         }
     }
 

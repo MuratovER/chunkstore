@@ -24,6 +24,9 @@ class AsyncChunkClient:
     async def upload_file_path(self, file_id: str, path: str | Path) -> list[str]:
         return await self.store.ingest_file_path(file_id, path)
 
+    async def upload_file_path_cdc(self, file_id: str, path: str | Path) -> list[str]:
+        return await self.store.ingest_file_path_cdc(file_id, path)
+
     async def download_file(self, file_id: str) -> bytes:
         return await self.store.read(file_id)
 

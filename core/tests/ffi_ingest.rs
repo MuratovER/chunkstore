@@ -6,8 +6,8 @@ use std::ptr;
 
 use chunkstore::ffi::{
     chunkstore_destroy, chunkstore_ingest_cdc_with_digests, chunkstore_ingest_fixed,
-    chunkstore_ingest_with_digests, chunkstore_open_fs, chunkstore_read, chunkstore_read_to_writer,
-    chunkstore_string_free, ChunkstoreWriteCallback, CHUNKSTORE_OK,
+    chunkstore_ingest_path, chunkstore_ingest_with_digests, chunkstore_open_fs, chunkstore_read,
+    chunkstore_read_to_writer, chunkstore_string_free, ChunkstoreWriteCallback, CHUNKSTORE_OK,
 };
 use tempfile::tempdir;
 
@@ -236,6 +236,49 @@ fn ffi_ingest_cdc_with_digests() {
         let json = CStr::from_ptr(digests_json).to_str().unwrap();
         let digests: Vec<String> = serde_json::from_str(json).expect("parse digests json");
         assert!(!digests.is_empty());
+        free_digests_json(digests_json);
+
+        chunkstore_destroy(store);
+    }
+}
+
+#[test]
+fn ffi_ingest_path_streams_from_disk() {
+    let dir = tempdir().expect("tempdir");
+    let payload = b"ffi-path-payload";
+    let src = dir.path().join("src.bin");
+    std::fs::write(&src, payload).unwrap();
+
+    let root = CString::new(dir.path().join("chunks").to_str().unwrap()).unwrap();
+    let path = CString::new(src.to_str().unwrap()).unwrap();
+
+    unsafe {
+        let store = chunkstore_open_fs(root.as_ptr());
+        assert!(!store.is_null());
+
+        let file_id = CString::new("from-disk").unwrap();
+        let mut digests_json: *mut c_char = ptr::null_mut();
+        let mut err: *mut c_char = ptr::null_mut();
+
+        let rc = chunkstore_ingest_path(
+            store,
+            file_id.as_ptr(),
+            path.as_ptr(),
+            0,
+            &mut digests_json,
+            &mut err,
+        );
+        assert_eq!(
+            rc,
+            CHUNKSTORE_OK,
+            "err={}",
+            CStr::from_ptr(err).to_str().unwrap_or("")
+        );
+        free_err(err);
+
+        let json = CStr::from_ptr(digests_json).to_str().unwrap();
+        let digests: Vec<String> = serde_json::from_str(json).expect("parse digests json");
+        assert_eq!(digests.len(), 1);
         free_digests_json(digests_json);
 
         chunkstore_destroy(store);

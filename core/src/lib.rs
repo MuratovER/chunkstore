@@ -12,4 +12,9 @@ pub mod store;
 pub use chunker::{chunk_cdc, CdcChunker, CdcConfig, Chunker, FixedChunker};
 pub use error::ChunkStoreError;
 pub use hasher::{digest_bytes, digest_hex, verify_digest};
-pub use store::{ChunkBackend, ChunkStore, FsBackend, MemoryBackend, Stats};
+#[cfg(feature = "postgres")]
+pub use store::PostgresMetadata;
+pub use store::{
+    ChunkBackend, ChunkCodec, ChunkStore, FsBackend, FsckReport, IdentityCodec, MemoryBackend,
+    Stats,
+};

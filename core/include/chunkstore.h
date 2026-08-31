@@ -22,6 +22,7 @@ typedef struct {
     uint64_t total_bytes;
     uint64_t stored_bytes;
     double savings_pct;
+    uint64_t gc_chunks;
 } ChunkstoreStats;
 
 #define CHUNKSTORE_OK 0
@@ -67,6 +68,30 @@ int chunkstore_ingest_cdc_with_digests(
     const char *file_id,
     const uint8_t *data,
     size_t len,
+    char **out_digests_json,
+    char **out_err);
+
+typedef int (*ChunkstoreReadCallback)(
+    uint8_t *buf,
+    size_t cap,
+    size_t *out_len,
+    void *userdata);
+
+int chunkstore_ingest_reader(
+    ChunkStoreHandle *store,
+    const char *file_id,
+    ChunkstoreReadCallback read_cb,
+    void *userdata,
+    size_t chunk_size,
+    int use_cdc,
+    char **out_digests_json,
+    char **out_err);
+
+int chunkstore_ingest_path(
+    ChunkStoreHandle *store,
+    const char *file_id,
+    const char *path,
+    int use_cdc,
     char **out_digests_json,
     char **out_err);
 

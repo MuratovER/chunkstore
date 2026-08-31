@@ -1,0 +1,29 @@
+name: Bug report
+description: Unexpected behavior in the core or language wrappers
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Search existing issues first. For vulnerabilities, email the address in SECURITY.md instead.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: Expected vs actual behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: Minimal code, versions (Rust/Python/Go), backend (FS/S3/Postgres).
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: "0.3.0"
+    validations:
+      required: true

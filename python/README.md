@@ -26,6 +26,8 @@ async with await AsyncChunkStore.open(FilesystemBackend("/data/chunks")) as stor
     data = await client.download_file("doc_v1")
 ```
 
+Large files: `ingest_file_path` / `ingest_aiter` stream without loading the whole payload in Python.
+
 For S3, use `AsyncS3Backend` (requires `chunkstore[s3]` with `aiobotocore`):
 
 ```python

@@ -44,7 +44,7 @@ Core embeddable CAS layer with cross-language on-disk format.
 
 ---
 
-## v0.2 — distribution & backends (current)
+## v0.2 — distribution & backends
 
 Polish packaging and make S3 + Go production-usable.
 
@@ -90,23 +90,24 @@ Large files and async Python services without loading full blobs in memory.
 | Streaming read in Python | High | ✅ `read_to_writer`, `read_to_path`, `iter_chunks`, async `iter_chunks` |
 | Streaming read in Go | Medium | ✅ `ReadTo(io.Writer)` |
 | Async Python API | Medium | ✅ `AsyncChunkStore`, `AsyncChunkClient`, `AsyncS3Backend` |
+| Streaming **ingest** | High | ✅ `ingest_reader` / `ingest_path` (Rust, FFI, Python, Go); Python `ingest_aiter` |
 | Python quality in CI | ✅ | `python-quality` job: `ruff` + `mypy --strict` |
-| Performance pass | Medium | Profile lock scope; reduce copies on hot path |
-| Fuzz CDC + fixed chunkers | Low | `cargo fuzz` for boundary / panic safety |
+| Performance pass | Medium | ✅ Stream ingest (no full-file `Vec`); refcount stores size (no blob GET for GC); ingest commits new chunks before releasing old |
+| Fuzz CDC + fixed chunkers | Low | ✅ `core/fuzz` (`cargo fuzz run fixed_chunker` / `cdc_chunker`) |
 
 ---
 
 ## v0.4+ — scale & enterprise hooks
 
-Multi-instance and optional encryption — only with a clear design.
+Multi-instance and optional encryption — only with a clear design. See [CONSISTENCY.md](CONSISTENCY.md).
 
 | Task | Priority | Details |
 |------|----------|---------|
-| Distributed metadata | High | Postgres or Redis for manifests/refcount (multi-node) |
-| Consistency model doc | High | Required before distributed mode |
-| Encryption at rest hooks | Medium | Per-chunk or per-repo keys; not a full KMS product |
-| Compaction / FSCK | Medium | Detect orphan chunks, rebuild indexes |
-| Observability | Medium | Metrics: `stored_bytes`, `savings_pct`, GC counts |
+| Consistency model doc | High | ✅ [docs/CONSISTENCY.md](CONSISTENCY.md) |
+| Distributed metadata | High | ✅ Postgres (`--features postgres`, `ChunkStore::open_postgres`) |
+| Encryption at rest hooks | Medium | ✅ `ChunkCodec` / `open_with_codec` (plaintext digest, blob transform) |
+| Compaction / FSCK | Medium | ✅ `ChunkStore::fsck(repair)` |
+| Observability | Medium | ✅ `Stats.gc_chunks`; Postgres `stats()` from SQL aggregates |
 | docs site | Low | MkDocs or similar; API reference generated from Rust/Python |
 
 ---
@@ -118,10 +119,10 @@ Multi-instance and optional encryption — only with a clear design.
 | Pre-commit: fmt, test, deny, clippy | ✅ | |
 | `mypy` / `ruff` in pre-commit or CI | ✅ | `ruff` in pre-commit; `mypy` in CI `python-quality` |
 | Criterion benches in CI (threshold) | 📋 | Optional regression guard |
-| Dependabot / Renovate | 📋 | Rust, Python, Go, GitHub Actions |
-| Issue templates + PR template | 📋 | Bug / feature / question |
+| Dependabot / Renovate | ✅ | `.github/dependabot.yml` |
+| Issue templates + PR template | ✅ | `.github/ISSUE_TEMPLATE/`, `PULL_REQUEST_TEMPLATE.md` |
 | LICENSE headers | 📋 | Optional; MIT is in root |
-| Security policy (`SECURITY.md`) | 📋 | Disclosure contact |
+| Security policy (`SECURITY.md`) | ✅ | [SECURITY.md](../SECURITY.md) |
 
 ---
 
@@ -143,13 +144,14 @@ Multi-instance and optional encryption — only with a clear design.
 ```mermaid
 flowchart LR
   A[v0.1.0 shipped] --> B[v0.2 shipped]
-  B --> C[v0.3 streaming read + async Python]
-  C --> D[v0.4 distributed metadata]
+  B --> C[v0.3 streaming]
+  C --> D[v0.4 Postgres metadata]
 ```
 
 1. ~~**Ship v0.1.0**~~ — PyPI `0.1.0`, public repo, CI, S3 backends.
 2. ~~**v0.2**~~ — crates.io workflow, Go module + API parity, S3 docs/hardening, CHANGELOG.
-3. **v0.3** — streaming read + async Python. ✅ Shipped; performance pass / async ingest streaming next.
+3. ~~**v0.3**~~ — streaming read + async Python + streaming ingest. ✅
+4. **v0.4** — Postgres metadata shipped in-tree (`--features postgres`); docs site still open.
 
 ---
 

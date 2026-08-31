@@ -8,6 +8,7 @@ package chunkstore
 #include <stdlib.h>
 
 int chunkstore_go_write_cb(uint8_t *data, size_t len, void *userdata);
+int chunkstore_go_read_cb(uint8_t *buf, size_t cap, size_t *out_len, void *userdata);
 */
 import "C"
 
@@ -15,7 +16,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"os"
 	"unsafe"
 )
 
@@ -84,31 +84,27 @@ func (s *Store) IngestCDC(fileID string, data []byte) ([]string, error) {
 	}, fileID, data)
 }
 
-// IngestReader reads all bytes from r and ingests with fixed-size chunking.
+// IngestReader streams bytes from r with fixed-size chunking (does not buffer the whole file).
 func (s *Store) IngestReader(fileID string, r io.Reader, chunkSize int) ([]string, error) {
-	data, err := io.ReadAll(r)
-	if err != nil {
-		return nil, err
+	if chunkSize <= 0 {
+		return nil, errors.New("chunk size must be positive")
 	}
-	return s.IngestFixed(fileID, data, chunkSize)
+	return s.ingestFromReader(fileID, r, chunkSize, false)
 }
 
-// IngestFile reads a file from disk and ingests with default fixed chunking.
+// IngestReaderCDC streams bytes from r with CDC chunking.
+func (s *Store) IngestReaderCDC(fileID string, r io.Reader) ([]string, error) {
+	return s.ingestFromReader(fileID, r, 0, true)
+}
+
+// IngestFile streams a file from disk with default fixed chunking.
 func (s *Store) IngestFile(fileID, path string) ([]string, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	return s.Ingest(fileID, data)
+	return s.ingestPath(fileID, path, false)
 }
 
-// IngestFileCDC reads a file from disk and ingests with CDC chunking.
+// IngestFileCDC streams a file from disk with CDC chunking.
 func (s *Store) IngestFileCDC(fileID, path string) ([]string, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	return s.IngestCDC(fileID, data)
+	return s.ingestPath(fileID, path, true)
 }
 
 // Read reconstructs file bytes for `fileID`.
@@ -169,6 +165,7 @@ func (s *Store) Stats() (Stats, error) {
 				TotalBytes:  uint64(out.total_bytes),
 				StoredBytes: uint64(out.stored_bytes),
 				SavingsPct:  float64(out.savings_pct),
+				GcChunks:    uint64(out.gc_chunks),
 			}
 		}
 		return rc
@@ -189,6 +186,51 @@ func (s *Store) ingestWithDigests(fn ingestDigestsFn, fileID string, data []byte
 		}
 		return fn(cid, ptr, C.size_t(len(data)), &digestsJSON, errOut)
 	})
+	return parseDigestsJSON(digestsJSON, err)
+}
+
+func (s *Store) ingestFromReader(fileID string, r io.Reader, chunkSize int, cdc bool) ([]string, error) {
+	id := registerReader(r)
+	defer unregisterReader(id)
+	var digestsJSON *C.char
+	useCDC := C.int(0)
+	if cdc {
+		useCDC = 1
+	}
+	err := s.withErr(func(errOut **C.char) C.int {
+		cid := C.CString(fileID)
+		defer C.free(unsafe.Pointer(cid))
+		return C.chunkstore_ingest_reader(
+			s.handle,
+			cid,
+			(C.ChunkstoreReadCallback)(C.chunkstore_go_read_cb),
+			unsafe.Pointer(uintptr(id)),
+			C.size_t(chunkSize),
+			useCDC,
+			&digestsJSON,
+			errOut,
+		)
+	})
+	return parseDigestsJSON(digestsJSON, err)
+}
+
+func (s *Store) ingestPath(fileID, path string, cdc bool) ([]string, error) {
+	var digestsJSON *C.char
+	useCDC := C.int(0)
+	if cdc {
+		useCDC = 1
+	}
+	err := s.withErr(func(errOut **C.char) C.int {
+		cid := C.CString(fileID)
+		defer C.free(unsafe.Pointer(cid))
+		cpath := C.CString(path)
+		defer C.free(unsafe.Pointer(cpath))
+		return C.chunkstore_ingest_path(s.handle, cid, cpath, useCDC, &digestsJSON, errOut)
+	})
+	return parseDigestsJSON(digestsJSON, err)
+}
+
+func parseDigestsJSON(digestsJSON *C.char, err error) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}

@@ -30,6 +30,9 @@ jobs:
       - name: Test
         run: cargo test -p chunkstore-core
 
+      - name: Postgres feature
+        run: cargo test -p chunkstore-core --features postgres
+
       - name: Workload analysis
         run: cargo run -p chunkstore-core --example workload_analysis --release
 

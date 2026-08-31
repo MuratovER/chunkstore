@@ -1,5 +1,6 @@
 [workspace]
 members = ["core", "python"]
+exclude = ["core/fuzz"]
 resolver = "2"
 
 [workspace.package]

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import queue
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -8,7 +9,7 @@ from typing import BinaryIO
 
 from chunkstore._native import Stats
 from chunkstore.async_bridge import AsyncBackendSyncAdapter
-from chunkstore.store import ChunkStore
+from chunkstore.store import ChunkStore, SupportsRead
 
 
 def _is_async_backend(backend: object) -> bool:
@@ -96,6 +97,9 @@ class AsyncChunkStore:
     async def ingest_file_path(self, file_id: str, path: str | Path) -> list[str]:
         return await asyncio.to_thread(self._store.ingest_file_path, file_id, path)
 
+    async def ingest_file_path_cdc(self, file_id: str, path: str | Path) -> list[str]:
+        return await asyncio.to_thread(self._store.ingest_file_path_cdc, file_id, path)
+
     async def read(self, file_id: str) -> bytes:
         return await asyncio.to_thread(self._store.read, file_id)
 
@@ -119,7 +123,56 @@ class AsyncChunkStore:
     async def ingest_reader(
         self,
         file_id: str,
-        reader: BinaryIO,
+        reader: SupportsRead,
         chunk_size: int = 4 * 1024 * 1024,
     ) -> list[str]:
         return await asyncio.to_thread(self._store.ingest_reader, file_id, reader, chunk_size)
+
+    async def ingest_aiter(
+        self,
+        file_id: str,
+        chunks: AsyncIterator[bytes],
+        chunk_size: int = 4 * 1024 * 1024,
+    ) -> list[str]:
+        """Stream an async iterator of bytes into the store without buffering the whole file."""
+        buf: queue.Queue[bytes | None] = queue.Queue(maxsize=8)
+
+        async def producer() -> None:
+            async for block in chunks:
+                await asyncio.to_thread(buf.put, block)
+            await asyncio.to_thread(buf.put, None)
+
+        task = asyncio.create_task(producer())
+        try:
+            return await asyncio.to_thread(
+                self._store.ingest_reader, file_id, _QueueReader(buf), chunk_size
+            )
+        finally:
+            await task
+
+
+class _QueueReader:
+    """File-like adapter that pulls bytes from a producer queue."""
+
+    def __init__(self, items: queue.Queue[bytes | None]) -> None:
+        self._q = items
+        self._buf = bytearray()
+        self._eof = False
+
+    def read(self, n: int = -1) -> bytes:
+        if n == 0:
+            return b""
+        want = n if n > 0 else 64 * 1024
+        while not self._eof and len(self._buf) < want:
+            item = self._q.get()
+            if item is None:
+                self._eof = True
+                break
+            self._buf.extend(item)
+        if n < 0:
+            out = bytes(self._buf)
+            self._buf.clear()
+            return out
+        out = bytes(self._buf[:n])
+        del self._buf[:n]
+        return out

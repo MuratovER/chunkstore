@@ -48,6 +48,11 @@ cd ../..
 ./scripts/build-core.sh
 cd go/chunkstore && go test -v
 go test -v -tags s3    # needs MinIO (see go/README.md)
+
+# Optional: CDC/fixed fuzz (libFuzzer; not in default CI)
+# cargo install cargo-fuzz
+# cd core && cargo fuzz run fixed_chunker -- -max_total_time=10
+# cargo fuzz run cdc_chunker -- -max_total_time=10
 ```
 
 ### Pre-commit hooks
@@ -235,7 +240,7 @@ Metadata on the backend:
 | Key | Format |
 |-----|--------|
 | `_manifest/{file_id}` | JSON: `{ "digests": [...], "file_bytes": N }` |
-| `_refcount/{digest}` | JSON: unsigned integer |
+| `_refcount/{digest}` | JSON: `{ "count": N, "size": M }` (legacy bare `N` still loads) |
 | `_manifest/__index__` | JSON: array of file IDs |
 | `_refcount/__index__` | JSON: array of digests |
 | `{digest}` (64 hex) | Raw chunk bytes at repo root |
@@ -262,7 +267,7 @@ Any change to keys, JSON shape, or digest rules **must**:
 - Backup CLI or `restic`-style UX
 - S3 gateway / reverse proxy
 - Perceptual dedup
-- Distributed refcount without a clear design
+- Distributed refcount on the blob backend without Postgres (see [docs/CONSISTENCY.md](docs/CONSISTENCY.md))
 - Large unrelated refactors
 - Breaking on-disk format without migration plan
 
@@ -275,7 +280,7 @@ When in doubt:
 1. **Correctness** over speed (verify hashes, refcount GC)
 2. **Embeddable** over standalone service
 3. **Shared format** over per-language shortcuts
-4. **Minimal dependencies** in `core/` (`sha2`, `serde`, `thiserror`, `fastcdc`)
+4. **Minimal dependencies** in `core/` (`sha2`, `serde`, `thiserror`, `fastcdc`; `postgres` is optional)
 
 ---
 

@@ -57,6 +57,6 @@ Thresholds:
 - **20–30%** — noticeable in storage billing
 - **50%+** — strong case for chunkstore
 
-## Memory note (v0.2)
+## Memory note
 
-`ingest_reader` / `ingest_file_path` (Python) and `IngestReader` / `IngestFile` (Go) read the **entire** input into memory before chunking. True streaming ingest without full-file buffering is planned for v0.3.
+`ingest_reader` / `ingest_file_path` (Python) and `IngestReader` / `IngestFile` (Go) **stream** from the source. Chunk payloads are stored as they are produced; the wrappers do not assemble the whole file in memory first.
