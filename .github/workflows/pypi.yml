@@ -78,7 +78,7 @@ jobs:
           command: sdist
           args: --out dist
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: package-sdist
           path: python/dist/*
@@ -105,7 +105,7 @@ jobs:
           manylinux: auto
           sccache: "true"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: package-wheel-linux-${{ matrix.target }}
           path: python/dist/*
@@ -126,7 +126,7 @@ jobs:
           command: build
           args: --release --out dist
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: package-wheel-macos-universal2
           path: python/dist/*
@@ -147,7 +147,7 @@ jobs:
           command: build
           args: --release --out dist
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: package-wheel-windows-x64
           path: python/dist/*
